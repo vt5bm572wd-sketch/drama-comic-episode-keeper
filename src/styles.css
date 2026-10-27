@@ -169,7 +169,7 @@
 
 /* iPhone 安全區域 */
 @utility pt-safe {
-  padding-top: max(env(safe-area-inset-top), 0.75rem);
+  padding-top: clamp(0.75rem, env(safe-area-inset-top), 3rem);
 }
 @utility pb-nav {
   padding-bottom: calc(env(safe-area-inset-bottom) + 6.5rem);
