@@ -1,12 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Film, Search } from "lucide-react";
+import { ChevronRight, Film, Plus, Search, Settings2, X } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { AddFab } from "@/components/drama/AddFab";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
 import { Section } from "@/components/drama/fields";
 import { PosterCard } from "@/components/drama/WorkCards";
 import { Button } from "@/components/ui/button";
-import { computeStats, recentlyAdded, recentlyWatched, topCategories } from "@/lib/drama/domain";
+import { Input } from "@/components/ui/input";
+import {
+  addCategoryOption,
+  removeCategoryOption,
+  useCategoryOptions,
+} from "@/lib/drama/category-options";
+import { computeStats, recentlyAdded, recentlyWatched } from "@/lib/drama/domain";
 import { useWorks } from "@/lib/drama/store";
+import type { Work } from "@/lib/drama/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,7 +44,7 @@ function HomePage() {
           className="mt-5 flex h-12 items-center gap-3 rounded-2xl border border-border bg-card px-4 text-sm text-subtle-foreground shadow-card active:scale-[0.99]"
         >
           <Search className="size-[18px] shrink-0" />
-          <span className="truncate">搜尋劇名、別名、演員、分類…</span>
+          <span className="truncate">搜尋劇名、別名、分類、標籤…</span>
         </Link>
       </header>
 
@@ -61,12 +70,50 @@ function HomePage() {
   );
 }
 
+function localDateKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatUpdateDate(value: string) {
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return value;
+  return new Intl.DateTimeFormat("zh-TW", { month: "numeric", day: "numeric", weekday: "short" }).format(
+    new Date(y, m - 1, d),
+  );
+}
+
 function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>> }) {
   const stats = computeStats(works);
   const watched = recentlyWatched(works, 10);
   const added = recentlyAdded(works, 10);
-  const cats = topCategories(works, 10);
+  const categories = useCategoryOptions();
+  const [manageCategories, setManageCategories] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
   const demoCount = works.filter((w) => w.isDemo).length;
+  const today = localDateKey();
+  const upcoming = works
+    .filter((w) => !!w.updateDate && w.updateDate >= today && w.seriesStatus !== "completed")
+    .sort((a, b) => (a.updateDate ?? "").localeCompare(b.updateDate ?? ""))
+    .slice(0, 10);
+  const categoryCounts = new Map<string, number>();
+  for (const work of works) {
+    for (const category of work.categories) {
+      if (categories.includes(category)) categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+    }
+  }
+
+  function addCategory() {
+    if (!newCategory.trim()) return;
+    if (!addCategoryOption(newCategory)) {
+      toast.error("分類已存在，或名稱格式不正確");
+      return;
+    }
+    setNewCategory("");
+    toast.success("已新增分類");
+  }
 
   return (
     <div className="space-y-9">
@@ -83,6 +130,12 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
             管理
           </Link>
         </div>
+      )}
+
+      {upcoming.length > 0 && (
+        <Section title="即將更新">
+          <UpcomingRow works={upcoming} />
+        </Section>
       )}
 
       <Section title="最近觀看">
@@ -106,23 +159,84 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
         <PosterRow works={added} />
       </Section>
 
-      {cats.length > 0 && (
-        <Section title="常用分類">
+      <Section
+        title="常用分類"
+        action={
+          <button
+            type="button"
+            onClick={() => setManageCategories((v) => !v)}
+            className="flex items-center gap-1 text-xs text-muted-foreground active:opacity-70"
+          >
+            <Settings2 className="size-3.5" /> 設定
+          </button>
+        }
+      >
+        {manageCategories && (
+          <div className="mb-3 space-y-3 rounded-2xl border border-border bg-card p-3">
+            <div className="flex gap-2">
+              <Input
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCategory();
+                  }
+                }}
+                placeholder="新增分類名稱"
+                maxLength={30}
+              />
+              <Button type="button" size="icon" variant="soft" aria-label="新增分類" onClick={addCategory}>
+                <Plus />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <span key={category} className="inline-flex items-center gap-1 rounded-full bg-elevated py-1 pl-3 pr-1 text-sm">
+                  {category}
+                  <button
+                    type="button"
+                    aria-label={`刪除分類 ${category}`}
+                    className="grid size-7 place-items-center rounded-full text-subtle-foreground active:bg-muted"
+                    onClick={() => removeCategoryOption(category)}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <p className="text-[11px] leading-relaxed text-subtle-foreground">
+              刪除只會從可選分類中隱藏，不會刪除既有作品已保存的分類資料。
+            </p>
+          </div>
+        )}
+
+        {categories.length > 0 ? (
           <div className="grid grid-cols-2 gap-2.5">
-            {cats.map((c) => (
+            {categories.map((category) => (
               <Link
-                key={c.name}
+                key={category}
                 to="/library"
-                search={{ category: c.name }}
+                search={{ category }}
                 className="surface flex items-center justify-between px-4 py-3.5 active:scale-[0.98]"
               >
-                <span className="truncate font-serif text-[15px] font-semibold">{c.name}</span>
-                <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">{c.count} 部</span>
+                <span className="truncate font-serif text-[15px] font-semibold">{category}</span>
+                <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">
+                  {categoryCounts.get(category) ?? 0} 部
+                </span>
               </Link>
             ))}
           </div>
-        </Section>
-      )}
+        ) : (
+          <button
+            type="button"
+            onClick={() => setManageCategories(true)}
+            className="w-full rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground"
+          >
+            尚未設定分類，點此新增
+          </button>
+        )}
+      </Section>
     </div>
   );
 }
@@ -160,12 +274,27 @@ function StatCard({
   );
 }
 
-function PosterRow({ works }: { works: NonNullable<ReturnType<typeof useWorks>> }) {
+function PosterRow({ works }: { works: Work[] }) {
   return (
     <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
       {works.map((w, i) => (
         <div key={w.id} className="w-[112px] shrink-0">
           <PosterCard work={w} eager={i < 3} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function UpcomingRow({ works }: { works: Work[] }) {
+  return (
+    <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
+      {works.map((work, i) => (
+        <div key={work.id} className="w-[112px] shrink-0">
+          <PosterCard work={work} eager={i < 3} />
+          {work.updateDate && (
+            <p className="mt-1 truncate text-[11px] font-medium text-primary">{formatUpdateDate(work.updateDate)} 更新</p>
+          )}
         </div>
       ))}
     </div>
