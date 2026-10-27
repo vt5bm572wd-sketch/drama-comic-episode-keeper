@@ -27,16 +27,20 @@ function HomePage() {
 
   return (
     <main className="pb-nav">
-      <header className="pt-safe px-5 pb-5">
-        <p className="brand-title pt-4 text-2xl text-foreground">NINA DRAMA</p>
-        <p className="mt-1 text-xs tracking-[0.2em] text-subtle-foreground">私人短劇・漫劇收藏館</p>
-        <Link
-          to="/search"
-          className="mt-5 flex h-12 items-center gap-3 rounded-2xl border border-border bg-card px-4 text-sm text-subtle-foreground shadow-card active:scale-[0.99]"
-        >
-          <Search className="size-[18px] shrink-0" />
-          <span className="truncate">搜尋劇名、別名、演員、分類…</span>
-        </Link>
+      <header className="pt-safe relative isolate z-10 bg-background px-5 pb-5 [filter:none] [backdrop-filter:none] [-webkit-backdrop-filter:none]">
+        <div className="relative z-10 opacity-100 [filter:none]">
+          <p className="brand-title pt-4 text-2xl text-foreground opacity-100 [filter:none]">NINA DRAMA</p>
+          <p className="mt-1 text-xs tracking-[0.2em] text-subtle-foreground opacity-100 [filter:none]">
+            私人短劇・漫劇收藏館
+          </p>
+          <Link
+            to="/search"
+            className="mt-5 flex h-12 items-center gap-3 rounded-2xl border border-border bg-card px-4 text-sm text-subtle-foreground shadow-card opacity-100 [filter:none] active:scale-[0.99]"
+          >
+            <Search className="size-[18px] shrink-0" />
+            <span className="truncate">搜尋劇名、別名、演員、分類…</span>
+          </Link>
+        </div>
       </header>
 
       {works === null ? (
