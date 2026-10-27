@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Plus, Settings2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,14 @@ export function CategoryManager({ works }: { works: Work[] }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const counts = new Map<string, number>();
+
+  useEffect(() => {
+    const legacy = document.querySelector<HTMLElement>('section[aria-labelledby="common-categories-title"]');
+    if (legacy) legacy.hidden = true;
+    return () => {
+      if (legacy) legacy.hidden = false;
+    };
+  }, []);
 
   for (const work of works) {
     for (const category of work.categories) {
