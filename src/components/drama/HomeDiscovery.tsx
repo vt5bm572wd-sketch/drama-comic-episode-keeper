@@ -160,11 +160,8 @@ export function HomeDiscovery({ works }: { works: Work[] }) {
           onClick={toggleCategories}
           className="mb-3 flex min-h-8 w-full items-center justify-between gap-3 text-left"
         >
-          <h2
-            id="common-categories-title"
-            className="flex items-center gap-2 font-serif text-lg font-semibold"
-          >
-            <span aria-hidden="true">▦</span>常用分類
+          <h2 id="common-categories-title" className="font-serif text-lg font-semibold">
+            常用分類
           </h2>
           <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
             {categoriesCollapsed ? "展開" : "收起"}
