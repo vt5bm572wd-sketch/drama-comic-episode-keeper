@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Bookmark, LayoutGrid, List, SlidersHorizontal } from "lucide-react";
-import { CategoryManager } from "@/components/drama/CustomCategories";
 import { AddFab } from "@/components/drama/AddFab";
 import { Chip, ChipRow } from "@/components/drama/Chip";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
@@ -18,7 +17,7 @@ import {
   WORK_TYPE_LABEL,
   type SortKey,
 } from "@/lib/drama/labels";
-import { useCustomCategories, useWorks } from "@/lib/drama/store";
+import { useWorks } from "@/lib/drama/store";
 import type { CollectStatus, WatchStatus, WorkType } from "@/lib/drama/types";
 
 interface LibrarySearch {
@@ -26,7 +25,6 @@ interface LibrarySearch {
   watch?: WatchStatus | undefined;
   collect?: CollectStatus | undefined;
   category?: string | undefined;
-  customCategory?: string | undefined;
   sort?: SortKey | undefined;
   view?: "grid" | "list" | undefined;
 }
@@ -39,7 +37,6 @@ export const Route = createFileRoute("/library")({
     type: pick(s["type"], ["short", "comic"] as const),
     watch: pick(s["watch"], WATCH_STATUS_ORDER),
     collect: pick(s["collect"], COLLECT_STATUS_ORDER),
-    customCategory: typeof s["customCategory"] === "string" ? s["customCategory"] : undefined,
     category: typeof s["category"] === "string" && s["category"] ? s["category"] : undefined,
     sort: pick(s["sort"], Object.keys(SORT_LABEL) as SortKey[]),
     view: pick(s["view"], ["grid", "list"] as const),
@@ -64,7 +61,6 @@ function LibraryPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const works = useWorks();
-  const customCategories = useCustomCategories() ?? [];
 
   const update = (patch: Partial<LibrarySearch>) =>
     navigate({ to: ".", search: (prev) => ({ ...prev, ...patch }), replace: true });
@@ -72,13 +68,7 @@ function LibraryPage() {
   const view = search.view ?? "list";
   const list = works ? filterAndSort(works, search) : [];
   const cats = works ? topCategories(works, 30) : [];
-  const hasFilter = !!(
-    search.type ||
-    search.watch ||
-    search.collect ||
-    search.category ||
-    search.customCategory
-  );
+  const hasFilter = !!(search.type || search.watch || search.collect || search.category);
 
   return (
     <main className="pb-nav">
@@ -127,41 +117,16 @@ function LibraryPage() {
               ))}
             </ChipRow>
 
-            <CategoryManager />
-            <ChipRow>
-              <Chip
-                active={!search.customCategory}
-                onClick={() => update({ customCategory: undefined })}
-              >
-                全部自訂分類
-              </Chip>
-              {customCategories.map((c) => (
-                <Chip
-                  key={c.id}
-                  active={search.customCategory === c.id}
-                  onClick={() =>
-                    update({ customCategory: search.customCategory === c.id ? undefined : c.id })
-                  }
-                >
-                  {c.name}
-                </Chip>
-              ))}
-            </ChipRow>
             {cats.length > 0 && (
               <ChipRow>
-                <Chip
-                  active={!search.category}
-                  onClick={() => update({ category: undefined, customCategory: undefined })}
-                >
+                <Chip active={!search.category} onClick={() => update({ category: undefined })}>
                   全部分類
                 </Chip>
                 {cats.map((c) => (
                   <Chip
                     key={c.name}
                     active={search.category === c.name}
-                    onClick={() =>
-                      update({ category: search.category === c.name ? undefined : c.name })
-                    }
+                    onClick={() => update({ category: search.category === c.name ? undefined : c.name })}
                   >
                     {c.name}
                   </Chip>
@@ -223,7 +188,6 @@ function LibraryPage() {
                           watch: undefined,
                           collect: undefined,
                           category: undefined,
-                          customCategory: undefined,
                         })
                       }
                     >
@@ -233,9 +197,9 @@ function LibraryPage() {
                 }
               />
             ) : view === "grid" ? (
-              <div className="grid grid-cols-3 gap-x-3 gap-y-5">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-6">
                 {list.map((w, i) => (
-                  <PosterCard key={w.id} work={w} eager={i < 6} />
+                  <PosterCard key={w.id} work={w} eager={i < 4} />
                 ))}
               </div>
             ) : (
