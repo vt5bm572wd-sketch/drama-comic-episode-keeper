@@ -1,4 +1,4 @@
-import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { ImagePlus, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -109,7 +109,6 @@ export function WorkForm({
     if (draft.seasons.length === 0) draft.seasons = [emptySeason(1)];
     return draft;
   });
-  const [customCat, setCustomCat] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -244,7 +243,7 @@ export function WorkForm({
     const work: Work = {
       updateDate: d.updateDate || null,
       seriesStatus: d.seriesStatus,
-      customCategories: [],
+      customCategories: initial?.customCategories ?? [],
       id: initial?.id ?? uid("w"),
       title: d.title.trim(),
       aliases: splitList(d.aliases),
@@ -350,21 +349,6 @@ export function WorkForm({
               {c}
             </Chip>
           ))}
-        </div>
-        <div className="mt-3 flex gap-2">
-          <Input value={customCat} onChange={(e) => setCustomCat(e.target.value)} placeholder="新增題材分類" />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              const value = customCat.trim();
-              if (!value) return;
-              if (!d.categories.includes(value)) set("categories", [...d.categories, value]);
-              setCustomCat("");
-            }}
-          >
-            <Plus />
-          </Button>
         </div>
       </Field>
 
