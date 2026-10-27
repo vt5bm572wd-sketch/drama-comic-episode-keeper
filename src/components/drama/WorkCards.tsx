@@ -6,12 +6,22 @@ import { EpisodeStepper } from "./EpisodeStepper";
 import { ProgressBar } from "./ProgressBar";
 import { RatingStars } from "./RatingStars";
 import { DemoBadge, StatusBadge } from "./StatusBadge";
-import { SeriesInfo } from "./SeriesInfo";
 import { WorkCover } from "./WorkCover";
 
-export function PosterCard({ work, eager }: { work: Work; eager?: boolean }) {
+export function PosterCard({
+  work,
+  eager,
+  showUnread = false,
+}: {
+  work: Work;
+  eager?: boolean;
+  showUnread?: boolean;
+}) {
   const season = currentSeason(work);
   const percent = season ? seasonPercent(season) : 0;
+  const totals = workTotals(work);
+  const unread = Math.max(0, totals.total - totals.watched);
+
   return (
     <Link
       to="/work/$id"
@@ -21,17 +31,20 @@ export function PosterCard({ work, eager }: { work: Work; eager?: boolean }) {
       <div className="relative">
         <WorkCover src={work.cover} title={work.title} eager={eager} />
         {work.isDemo && <DemoBadge className="absolute left-2 top-2" />}
-        {work.watchStatus === "watching" && season && (
+        {season && (
           <div className="absolute inset-x-2 bottom-2">
             <ProgressBar value={percent} className="h-1 bg-background/60" />
           </div>
         )}
       </div>
-      <SeriesInfo work={work} />
-      <p className="mt-2 truncate text-sm font-medium">{work.title}</p>
+      {showUnread && unread > 0 && (
+        <p className="mt-1.5 truncate text-[11px] font-medium text-primary">有 {unread} 集未看</p>
+      )}
+      <p className={showUnread && unread > 0 ? "mt-0.5 truncate text-sm font-medium" : "mt-2 truncate text-sm font-medium"}>
+        {work.title}
+      </p>
       <p className="truncate text-xs text-subtle-foreground">
-        {work.seasons.length > 1 ? `${work.seasons.length} 季 · ` : ""}
-        {season ? `${season.watchedEpisodes}/${availableEpisodes(season)} 集` : ""}
+        {work.seasons.length} 季 · {totals.watched}/{totals.total} 集
       </p>
     </Link>
   );
