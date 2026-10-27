@@ -137,12 +137,14 @@ describe("搜尋", () => {
   it.each([
     ["劇名", "長安"],
     ["別名", "安雪"],
-    ["演員", "小明"],
     ["分類", "古裝"],
     ["標籤", "宮廷"],
     ["簡介", "重返"],
   ])("可用%s部分文字找到作品", (_label, q) => {
     expect(searchWorks(list, q).map((w) => w.id)).toEqual(["1"]);
+  });
+  it("不再用演員欄位搜尋", () => {
+    expect(searchWorks(list, "小明")).toEqual([]);
   });
   it("沒有結果時回傳空陣列", () => {
     expect(searchWorks(list, "不存在的劇")).toEqual([]);
