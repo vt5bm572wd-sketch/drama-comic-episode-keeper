@@ -1,0 +1,11 @@
+{
+  "name": "NINA DRAMA",
+  "short_name": "NINA DRAMA",
+  "description": "私人短劇與漫劇收藏、追劇進度管理。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f12",
+  "theme_color": "#0f0f12"
+}
