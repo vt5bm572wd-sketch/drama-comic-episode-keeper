@@ -73,7 +73,11 @@ export function useCategoryOptions(): string[] {
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key !== STORAGE_KEY) return;
-    cache = event.newValue === null ? [...PRESET_CATEGORIES] : normalize(JSON.parse(event.newValue));
+    try {
+      cache = event.newValue === null ? [...PRESET_CATEGORIES] : normalize(JSON.parse(event.newValue));
+    } catch {
+      cache = [...PRESET_CATEGORIES];
+    }
     listeners.forEach((listener) => listener());
   });
 }
