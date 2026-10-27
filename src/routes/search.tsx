@@ -81,7 +81,7 @@ function SearchPage() {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={scope === "online" ? "輸入劇名查詢紅果短劇" : "劇名、演員、標籤，或貼上作品網址"}
+            placeholder={scope === "online" ? "輸入劇名查詢紅果短劇" : "劇名、別名、分類、標籤，或貼上作品網址"}
             aria-label="搜尋作品"
             enterKeyHint="search"
             className="h-12 w-full rounded-2xl border border-border bg-card pl-11 pr-11 text-base text-foreground shadow-card placeholder:text-subtle-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-search-cancel-button]:hidden"
@@ -142,4 +142,3 @@ function SearchPage() {
     </main>
   );
 }
-
