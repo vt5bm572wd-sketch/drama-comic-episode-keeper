@@ -9,6 +9,7 @@ import { PosterCard } from "@/components/drama/WorkCards";
 import { Button } from "@/components/ui/button";
 import { computeStats, recentlyAdded, recentlyWatched } from "@/lib/drama/domain";
 import { useWorks } from "@/lib/drama/store";
+import type { Work } from "@/lib/drama/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,11 +49,33 @@ function HomePage() {
   );
 }
 
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatUpdateDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  }).format(new Date(year, month - 1, day));
+}
+
 function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>> }) {
   const stats = computeStats(works);
   const watched = recentlyWatched(works, 10);
   const added = recentlyAdded(works, 10);
   const demoCount = works.filter((w) => w.isDemo).length;
+  const today = localDateKey();
+  const upcoming = works
+    .filter((work) => !!work.updateDate && work.updateDate >= today && work.seriesStatus !== "completed")
+    .sort((a, b) => (a.updateDate ?? "").localeCompare(b.updateDate ?? ""))
+    .slice(0, 10);
 
   return (
     <div className="space-y-9">
@@ -82,6 +105,12 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
             管理
           </Link>
         </div>
+      )}
+
+      {upcoming.length > 0 && (
+        <Section title="即將更新">
+          <UpcomingRow works={upcoming} />
+        </Section>
       )}
 
       <Section title="最近觀看">
@@ -151,6 +180,23 @@ function StatCard({
     <Link to="/library" className={cls}>
       {body}
     </Link>
+  );
+}
+
+function UpcomingRow({ works }: { works: Work[] }) {
+  return (
+    <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
+      {works.map((work, index) => (
+        <div key={work.id} className="w-[112px] shrink-0">
+          <PosterCard work={work} eager={index < 3} />
+          {work.updateDate && (
+            <p className="mt-1 text-[11px] font-medium text-primary">
+              {formatUpdateDate(work.updateDate)} 更新
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
