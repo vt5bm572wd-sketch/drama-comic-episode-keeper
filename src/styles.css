@@ -222,3 +222,28 @@ main > div.relative > .absolute.inset-x-0.bottom-0 {
   -webkit-backdrop-filter: none !important;
   opacity: 1 !important;
 }
+
+/* iOS Safari: force page-header content onto its own crisp compositor layer. */
+.page-header-clear,
+.page-header-clear * {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.page-header-clear {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* iOS renders date text inside a private WebKit sub-element; center that value explicitly. */
+#update-date {
+  text-align: center !important;
+}
+
+#update-date::-webkit-date-and-time-value {
+  text-align: center !important;
+  width: 100%;
+}
