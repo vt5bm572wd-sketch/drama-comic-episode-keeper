@@ -38,7 +38,10 @@ describe("新增與編輯的共用表單", () => {
     const submit = vi.fn();
     render(<WorkForm initial={w} submitLabel="儲存測試" onSubmit={submit} />);
     fireEvent.change(screen.getByLabelText("劇集更新日期"), { target: { value: "2026-10-28" } });
-    fireEvent.change(screen.getByLabelText("已更新"), { target: { value: "40" } });
+    const currentField = screen.getByText("已更新").parentElement;
+    const currentInput = currentField?.querySelector("input");
+    expect(currentInput).not.toBeNull();
+    fireEvent.change(currentInput!, { target: { value: "40" } });
     fireEvent.click(screen.getByRole("button", { name: "儲存測試" }));
     expect(submit).toHaveBeenCalledOnce();
     const saved = submit.mock.calls[0]![0] as Work;
@@ -60,7 +63,10 @@ describe("新增與編輯的共用表單", () => {
   it("提供四種劇集狀態與六種追劇狀態", () => {
     render(<WorkForm submitLabel="新增" onSubmit={() => {}} />);
     expect(screen.getByLabelText("劇集狀態").querySelectorAll("option")).toHaveLength(4);
-    expect(screen.getByLabelText("觀看狀態").querySelectorAll("option")).toHaveLength(6);
+    const watchField = screen.getByText("觀看狀態").parentElement;
+    const watchSelect = watchField?.querySelector("select");
+    expect(watchSelect).not.toBeNull();
+    expect(watchSelect!.querySelectorAll("option")).toHaveLength(6);
   });
   it("列表顯示作品日期與衍生提示", () => {
     render(<SeriesInfo work={w} />);
