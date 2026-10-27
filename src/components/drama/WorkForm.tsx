@@ -184,8 +184,8 @@ export function WorkForm({
 
   function validate() {
     const e: Record<string, string> = {};
-    if (!d.title.trim()) e.title = "請輸入劇名";
-    if (d.updateDate && !validUpdateDate(d.updateDate)) e.updateDate = "請輸入有效日期";
+    if (!d.title.trim()) e["title"] = "請輸入劇名";
+    if (d.updateDate && !validUpdateDate(d.updateDate)) e["updateDate"] = "請輸入有效日期";
     const nums = new Set<number>();
     d.seasons.forEach((s) => {
       const n = Number(s.number);
@@ -201,7 +201,7 @@ export function WorkForm({
       else if (Number.isInteger(total) && watched > total)
         e[`s-${s.id}-watched`] = "已看集數不得超過總集數";
     });
-    if (d.seasons.length === 0) e.seasons = "至少需要一季";
+    if (d.seasons.length === 0) e["seasons"] = "至少需要一季";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -307,8 +307,8 @@ export function WorkForm({
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
         </div>
         <div className="min-w-0 space-y-4">
-          <Field label="劇名 *" htmlFor="title" error={errors.title}>
-            <Input id="title" value={d.title} onChange={(e) => set("title", e.target.value)} placeholder="例如：雪落長安" aria-invalid={!!errors.title} />
+          <Field label="劇名 *" htmlFor="title" error={errors["title"]}>
+            <Input id="title" value={d.title} onChange={(e) => set("title", e.target.value)} placeholder="例如：雪落長安" aria-invalid={!!errors["title"]} />
           </Field>
           <Field label="類型">
             <div className="grid grid-cols-2 gap-2">
@@ -323,7 +323,7 @@ export function WorkForm({
       </div>
 
       <div className="mx-auto w-full max-w-sm text-center">
-        <Field label="劇集更新日期" error={errors.updateDate} htmlFor="update-date" hint="作品實際更新內容的日期，不是資料修改日期">
+        <Field label="劇集更新日期" error={errors["updateDate"]} htmlFor="update-date" hint="作品實際更新內容的日期，不是資料修改日期">
           <Input
             id="update-date"
             type="date"
@@ -396,7 +396,7 @@ export function WorkForm({
             <Plus />新增一季
           </Button>
         </div>
-        {errors.seasons && <p className="text-sm text-destructive">{errors.seasons}</p>}
+        {errors["seasons"] && <p className="text-sm text-destructive">{errors["seasons"]}</p>}
         {d.seasons.map((s) => (
           <div key={s.id} className="surface space-y-4 p-4">
             <div className="flex items-center justify-between gap-2">

@@ -110,7 +110,8 @@
   --status-dropped: oklch(0.68 0.09 25);
 
   --shadow-card-value: 0 1px 0 0 oklch(1 0 0 / 4%) inset, 0 10px 30px -14px oklch(0 0 0 / 70%);
-  --shadow-float-value: 0 12px 32px -8px oklch(0.55 0.1 300 / 45%), 0 4px 12px -4px oklch(0 0 0 / 60%);
+  --shadow-float-value:
+    0 12px 32px -8px oklch(0.55 0.1 300 / 45%), 0 4px 12px -4px oklch(0 0 0 / 60%);
   --shadow-poster-value: 0 18px 40px -18px oklch(0 0 0 / 85%);
 
   --gradient-poster-fade: linear-gradient(
@@ -152,8 +153,6 @@
 
   body {
     background-color: var(--color-background);
-    background-image: var(--gradient-hero-glow);
-    background-repeat: no-repeat;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     overflow-x: hidden;
@@ -165,6 +164,11 @@
   select {
     font-size: 16px;
   }
+}
+
+.home-ambient {
+  background-image: var(--gradient-hero-glow);
+  background-repeat: no-repeat;
 }
 
 @utility pt-safe {

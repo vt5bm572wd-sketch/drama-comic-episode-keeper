@@ -27,7 +27,7 @@ function HomePage() {
   const works = useWorks();
 
   return (
-    <main className="pb-nav">
+    <main className="home-ambient pb-nav">
       <header className="pt-safe px-5 pb-5">
         <p className="brand-title pt-4 text-2xl text-foreground">NINA DRAMA</p>
         <p className="mt-1 text-xs tracking-[0.2em] text-subtle-foreground">私人短劇・漫劇收藏館</p>

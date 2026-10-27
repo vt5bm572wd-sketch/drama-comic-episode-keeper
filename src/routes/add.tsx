@@ -1,12 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Camera, FileJson, Link2, Share2 } from "lucide-react";
+import { Link2, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { LinkImportPanel, type LinkMode, type OnlineDetails } from "@/components/drama/LinkImportPanel";
+import {
+  LinkImportPanel,
+  type LinkMode,
+  type OnlineDetails,
+} from "@/components/drama/LinkImportPanel";
+import { BackupImportButton, ScreenshotImportButton } from "@/components/drama/AddImportTools";
 import { PageHeader } from "@/components/drama/PageHeader";
 import { WorkForm, type WorkPrefill } from "@/components/drama/WorkForm";
 import { guessWorkType, tagsToCategories } from "@/lib/drama/hongguo-data";
-import { findWorkBySeriesId, hongguoDetailUrl, isValidSeriesId, makeSource } from "@/lib/drama/link-import";
+import {
+  findWorkBySeriesId,
+  hongguoDetailUrl,
+  isValidSeriesId,
+  makeSource,
+} from "@/lib/drama/link-import";
 import { dramaStore } from "@/lib/drama/store";
 import type { WorkSource } from "@/lib/drama/types";
 import { cn } from "@/lib/utils";
@@ -18,7 +28,10 @@ export const Route = createFileRoute("/add")({
   head: () => ({
     meta: [
       { title: "新增作品｜NINA DRAMA" },
-      { name: "description", content: "手動新增短劇或漫劇，或貼上紅果短劇網址與分享連結，自動取得作品資料。" },
+      {
+        name: "description",
+        content: "手動新增短劇或漫劇，或貼上紅果短劇網址與分享連結，自動取得作品資料。",
+      },
       { property: "og:title", content: "新增作品｜NINA DRAMA" },
       { property: "og:description", content: "手動新增短劇或漫劇到收藏，支援貼上作品網址。" },
       { property: "og:type", content: "website" },
@@ -31,11 +44,6 @@ export const Route = createFileRoute("/add")({
 const LINK_IMPORTS: { mode: LinkMode; icon: typeof Link2; label: string }[] = [
   { mode: "url", icon: Link2, label: "作品網址" },
   { mode: "share", icon: Share2, label: "分享連結" },
-];
-
-const FUTURE_IMPORTS = [
-  { icon: Camera, label: "截圖辨識" },
-  { icon: FileJson, label: "備份匯入" },
 ];
 
 function AddPage() {
@@ -91,22 +99,23 @@ function AddPage() {
             >
               <Icon className="size-5" strokeWidth={1.6} />
               <span className="text-[11px]">{label}</span>
-              <span className="rounded bg-elevated px-1.5 py-px text-[9px] tracking-wider text-muted-foreground">紅果短劇</span>
+              <span className="rounded bg-elevated px-1.5 py-px text-[9px] tracking-wider text-muted-foreground">
+                紅果短劇
+              </span>
             </button>
           ))}
-          {FUTURE_IMPORTS.map(({ icon: Icon, label }) => (
-            <button
-              key={label}
-              type="button"
-              disabled
-              aria-disabled="true"
-              className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-border bg-card/50 px-1 py-3 text-subtle-foreground opacity-70"
-            >
-              <Icon className="size-5" strokeWidth={1.6} />
-              <span className="text-[11px]">{label}</span>
-              <span className="rounded bg-elevated px-1.5 py-px text-[9px] tracking-wider">尚未開放</span>
-            </button>
-          ))}
+          <ScreenshotImportButton
+            onOpen={() => setMode(null)}
+            onApply={({ title, totalEpisodes }) =>
+              setPrefill((current) => ({
+                nonce: (current?.nonce ?? 0) + 1,
+                force: true,
+                title,
+                totalEpisodes,
+              }))
+            }
+          />
+          <BackupImportButton onOpen={() => setMode(null)} />
         </div>
 
         {mode && (
@@ -126,7 +135,7 @@ function AddPage() {
         )}
 
         <p className="mt-2 text-xs text-subtle-foreground">
-          截圖辨識為未來版本預留。JSON 備份匯入請至「設定」。
+          截圖辨識結果會先讓你確認；備份匯入也會先預覽，不會直接覆蓋資料。
         </p>
       </section>
 
