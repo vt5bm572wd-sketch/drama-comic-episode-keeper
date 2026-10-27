@@ -16,9 +16,10 @@ export function WorkCover({
   return (
     <div
       className={cn(
-        "relative aspect-[2/3] w-full shrink-0 overflow-hidden rounded-xl bg-elevated shadow-poster",
+        "relative block w-full min-w-0 shrink-0 overflow-hidden rounded-xl bg-elevated shadow-poster",
         className,
       )}
+      style={{ aspectRatio: "2 / 3" }}
     >
       {resolved === undefined ? null : resolved ? (
         <img
@@ -28,7 +29,8 @@ export function WorkCover({
           loading={eager ? "eager" : "lazy"}
           width={768}
           height={1152}
-          className="absolute inset-0 h-full w-full object-cover object-center"
+          className="absolute inset-0 block h-full w-full object-cover object-center"
+          style={{ objectFit: "cover" }}
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
