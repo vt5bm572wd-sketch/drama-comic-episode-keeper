@@ -7,8 +7,8 @@ import type { WorkType } from "./types";
  *
  * 資料來源是 hongguoduanju.com 公開網頁：
  * - 作品頁 /detail?series_id=… 的伺服器端輸出內含 `_ROUTER_DATA` JSON
- * - 網站搜尋使用的 /api/search/result?query=…
- * 兩者都不是公開文件化的 API，格式可能隨官方改版而變，解析失敗時要回到手動填寫。
+ * - 搜尋頁 /search/{keyword} 同樣由 `_ROUTER_DATA` 提供搜尋結果
+ * 網頁結構可能隨官方改版而變，解析失敗時要回到手動填寫。
  */
 
 export const HONGGUO_ORIGIN = "https://hongguoduanju.com";
@@ -106,7 +106,8 @@ export function extractJsonObject(src: string, from: number): string | null {
 }
 
 export function extractRouterData(html: string): Obj | null {
-  const marker = html.indexOf("_ROUTER_DATA = ");
+  const markers = ["_ROUTER_DATA = ", "_ROUTER_DATA="];
+  const marker = markers.map((m) => html.indexOf(m)).find((i) => i >= 0) ?? -1;
   if (marker < 0) return null;
   const json = extractJsonObject(html, marker);
   if (!json) return null;
@@ -155,8 +156,8 @@ function buildWork(
     title,
     coverUrl: isAllowedImageUrl(raw.cover) ? raw.cover : null,
     synopsis: str(raw.synopsis).trim().slice(0, MAX_SYNOPSIS),
-    actors: cleanList(raw.actors.map((a) => (isObj(a) ? a["nickname"] : a))),
-    tags: cleanList(raw.tags.map((t) => (isObj(t) ? t["name"] : t))),
+    actors: cleanList(raw.actors.map((a) => (isObj(a) ? a["nickname"] ?? a["name"] : a))),
+    tags: cleanList(raw.tags.map((t) => (isObj(t) ? t["name"] ?? t["title"] : t))),
     totalEpisodes: toPositiveInt(raw.episodes),
     heat: raw.heat || null,
     rating: raw.rating,
@@ -164,7 +165,7 @@ function buildWork(
   };
 }
 
-/** 解析官方網站搜尋回應 */
+/** 舊版 JSON 搜尋回應解析，保留作相容備援。 */
 export function parseSearchJson(json: unknown, page: number): OnlineSearchResult {
   if (!isObj(json) || !Array.isArray(json["searchList"])) {
     return { ok: false, message: "紅果短劇搜尋回應格式不符，可能是官方網站改版。" };
@@ -193,6 +194,55 @@ export function parseSearchJson(json: unknown, page: number): OnlineSearchResult
   }
   const total = toPositiveInt(json["totalCount"]) ?? items.length;
   return { ok: true, items, page, hasMore: json["hasMore"] === true, total };
+}
+
+/**
+ * 解析目前官網 `/search/{keyword}` HTML。
+ * 官網會把搜尋資料放在 `_ROUTER_DATA`；為降低改版影響，遞迴尋找含 series_id 的作品物件。
+ */
+export function parseSearchHtml(html: string, page = 1): OnlineSearchResult {
+  const data = extractRouterData(html);
+  if (!data) return { ok: false, message: "紅果短劇搜尋頁格式已變更，暫時無法讀取搜尋結果。" };
+
+  const items: OnlineWork[] = [];
+  const seen = new Set<string>();
+  const visited = new Set<unknown>();
+
+  const visit = (value: unknown, depth = 0) => {
+    if (depth > 14 || value == null || visited.has(value)) return;
+    if (typeof value === "object") visited.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, depth + 1);
+      return;
+    }
+    if (!isObj(value)) return;
+
+    const id = str(value["series_id"] ?? value["seriesId"]);
+    if (isValidSeriesId(id) && !seen.has(id)) {
+      const episodeInfo = isObj(value["series_episode_info"]) ? value["series_episode_info"] : {};
+      const hot = isObj(value["hot_score_data"]) ? value["hot_score_data"] : {};
+      const ratingRaw = value["rating"];
+      const work = buildWork(id, {
+        title: value["series_title"] ?? value["series_name"] ?? value["title"] ?? value["name"],
+        cover: value["series_cover"] ?? value["cover"] ?? value["cover_url"],
+        synopsis: value["series_intro"] ?? value["intro"] ?? value["description"],
+        actors: Array.isArray(value["celebrities"]) ? value["celebrities"] : Array.isArray(value["actors"]) ? value["actors"] : [],
+        tags: Array.isArray(value["category_list"]) ? value["category_list"] : Array.isArray(value["tags"]) ? value["tags"] : [],
+        episodes: episodeInfo["episode_total_cnt"] ?? value["episode_cnt"] ?? value["total_episode"] ?? value["totalEpisodes"],
+        heat: cleanText(hot["text"] ?? value["hot_score"] ?? value["heat"], 30),
+        rating: typeof ratingRaw === "number" && ratingRaw > 0 ? ratingRaw : null,
+      });
+      if (work !== "parse") {
+        seen.add(id);
+        items.push(work);
+      }
+    }
+
+    for (const child of Object.values(value)) visit(child, depth + 1);
+  };
+
+  visit(data);
+  return { ok: true, items, page, hasMore: false, total: items.length };
 }
 
 /* ---------- 轉成表單可用的資料 ---------- */
@@ -231,4 +281,3 @@ export function tagsToCategories(tags: string[]): string[] {
 export function guessWorkType(work: Pick<OnlineWork, "actors">): WorkType {
   return work.actors.length === 0 ? "comic" : "short";
 }
-
