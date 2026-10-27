@@ -172,7 +172,7 @@ function LibraryPage() {
             ) : view === "grid" ? (
               <div className="grid grid-cols-3 gap-x-2 gap-y-5">
                 {list.map((w, i) => (
-                  <PosterCard key={w.id} work={w} eager={i < 6} />
+                  <PosterCard key={w.id} work={w} eager={i < 6} showProgress />
                 ))}
               </div>
             ) : (
