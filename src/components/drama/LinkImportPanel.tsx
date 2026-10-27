@@ -44,7 +44,6 @@ export function LinkImportPanel({
   onLinked: (result: LinkSuccess) => void;
   onUnlink: () => void;
   onApplyTitle: (title: string) => void;
-  /** 取得線上作品資料後帶入表單；force = 覆蓋已填寫的欄位 */
   onDetails: (details: OnlineDetails, force: boolean) => void;
 }) {
   const [text, setText] = useState(initialText);
@@ -86,7 +85,6 @@ export function LinkImportPanel({
       setOutcome({ kind: "error", message: r.message });
       return;
     }
-    // 直接讀最新收藏，避免頁面剛載入時清單尚未就緒而漏判重複
     const dup = findWorkBySeriesId(dramaStore.getSnapshot(), r.seriesId);
     if (dup) {
       if (outcome.kind === "linked") onUnlink();
@@ -223,10 +221,7 @@ export function LinkImportPanel({
                     {fetchState.details.work.totalEpisodes ? `全 ${fetchState.details.work.totalEpisodes} 集` : "集數未提供"}
                     {fetchState.details.work.heat ? ` · ${fetchState.details.work.heat}` : ""}
                   </p>
-                  <p>已取得作品資料，並自動填入下方空白欄位（封面、劇名、簡介、演員、標籤、總集數）。請確認後保存。</p>
-                  {fetchState.details.work.actors.length === 0 && (
-                    <p className="text-subtle-foreground">官方未列出演員，類型先設為漫劇，可自行更改。</p>
-                  )}
+                  <p>已取得作品資料，並自動填入下方空白欄位（封面、劇名、簡介、標籤、總集數）。請確認後保存。</p>
                 </div>
               </div>
             )}
@@ -238,7 +233,7 @@ export function LinkImportPanel({
                   {fetchState.message}
                 </p>
                 <p className="text-muted-foreground">
-                  仍可在下方手動填寫封面、簡介、演員與集數，保存時會一併記錄來源。
+                  仍可在下方手動填寫封面、簡介與集數，保存時會一併記錄來源。
                   {outcome.result.title && `分享文字中的劇名《${outcome.result.title}》已帶入。`}
                 </p>
               </div>
@@ -272,4 +267,3 @@ export function LinkImportPanel({
     </div>
   );
 }
-
