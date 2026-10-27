@@ -16,26 +16,31 @@ export function PageHeader({
 }) {
   const router = useRouter();
   return (
-    <header className="pt-safe grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-5 pb-4">
-      <div className="flex min-w-0 items-center gap-1">
+    <header className="pt-safe relative isolate z-20 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 bg-background px-5 pb-4 opacity-100 [filter:none] [backdrop-filter:none] [-webkit-backdrop-filter:none]">
+      <div className="relative z-10 flex min-w-0 items-center gap-1 opacity-100 [filter:none]">
         {back && (
           <Button
             variant="ghost"
             size="icon"
-            className="-ml-2 shrink-0"
+            className="-ml-2 shrink-0 opacity-100 [filter:none]"
             aria-label="返回"
             onClick={() => router.history.back()}
           >
             <ChevronLeft className="size-6!" />
           </Button>
         )}
-        <div className="min-w-0">
-          <h1 className="truncate font-serif text-2xl font-semibold tracking-wide">{title}</h1>
-          {subtitle && <p className="mt-0.5 truncate text-sm text-muted-foreground">{subtitle}</p>}
+        <div className="min-w-0 opacity-100 [filter:none]">
+          <h1 className="truncate font-serif text-2xl font-semibold tracking-wide text-foreground opacity-100 [filter:none]">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="mt-0.5 truncate text-sm text-muted-foreground opacity-100 [filter:none]">
+              {subtitle}
+            </p>
+          )}
         </div>
       </div>
-      {right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
+      {right && <div className="relative z-10 flex shrink-0 items-center gap-2 opacity-100 [filter:none]">{right}</div>}
     </header>
   );
 }
-
