@@ -5,7 +5,7 @@ import type { Work } from "@/lib/drama/types";
 import { EpisodeStepper } from "./EpisodeStepper";
 import { ProgressBar } from "./ProgressBar";
 import { RatingStars } from "./RatingStars";
-import { DemoBadge, StatusBadge, TypeBadge } from "./StatusBadge";
+import { DemoBadge, StatusBadge } from "./StatusBadge";
 import { SeriesInfo } from "./SeriesInfo";
 import { WorkCover } from "./WorkCover";
 
@@ -40,6 +40,7 @@ export function PosterCard({ work, eager }: { work: Work; eager?: boolean }) {
 export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boolean }) {
   const season = currentSeason(work);
   const totals = workTotals(work);
+
   return (
     <div className="surface p-3">
       <Link
@@ -52,40 +53,40 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
           title={work.title}
           className="w-[76px] shrink-0 self-start rounded-lg [&_img]:object-cover [&_img]:object-top"
         />
+
         <div className="flex min-w-0 flex-1 flex-col py-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <h3 className="truncate font-serif text-base font-semibold">{work.title}</h3>
             {work.isDemo && <DemoBadge />}
           </div>
+
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <StatusBadge status={work.watchStatus} />
-            <TypeBadge type={work.type} />
-            {work.seasons.length > 1 && (
-              <span className="text-[11px] text-subtle-foreground">
-                共 {work.seasons.length} 季
-              </span>
-            )}
+            <span className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {SERIES_STATUS_LABEL[work.seriesStatus ?? "pending"]}
+            </span>
+            <span className="text-[11px] text-subtle-foreground">
+              共 {work.seasons.length} 季
+            </span>
           </div>
-          <p className="mt-2 text-xs leading-relaxed text-subtle-foreground">
-            {SERIES_STATUS_LABEL[work.seriesStatus ?? "pending"]}｜更新至 {totals.total} 集
-            {work.updateDate ? `｜${work.updateDate.replaceAll("-", "/")} 更新` : ""}
-          </p>
+
           {work.rating > 0 && (
-            <div className="mt-1.5">
+            <div className="mt-2">
               <RatingStars value={work.rating} size="sm" />
             </div>
           )}
+
           {!withStepper && (
             <div className="mt-auto space-y-1.5 pt-2">
               <p className="text-xs text-muted-foreground">
-                {season && work.seasons.length > 1 && <>目前第 {season.number} 季 · </>}
-                總進度 {totals.watched}/{totals.total} 集
+                {season ? `目前第 ${season.number} 季 · ` : ""}總進度 {totals.watched}/{totals.total} 集
               </p>
               <ProgressBar value={totals.percent} />
             </div>
           )}
         </div>
       </Link>
+
       {withStepper && season && (
         <div className="mt-3 border-t border-border pt-3">
           <EpisodeStepper work={work} season={season} compact />
