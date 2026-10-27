@@ -212,3 +212,17 @@
   letter-spacing: 0.32em;
 }
 
+/* NINA DRAMA targeted fixes: only the requested UI issues. */
+img[aria-hidden].blur-md.opacity-40 {
+  filter: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.space-y-2:has(> .nina-custom-category-marker) {
+  display: none !important;
+}
+
+div:has(> input[placeholder="新增題材分類"]) {
+  display: none !important;
+}
