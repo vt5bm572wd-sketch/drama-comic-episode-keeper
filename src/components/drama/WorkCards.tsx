@@ -44,9 +44,13 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
       <Link
         to="/work/$id"
         params={{ id: work.id }}
-        className="flex min-w-0 gap-3.5 active:opacity-80"
+        className="flex min-w-0 items-start gap-3.5 active:opacity-80"
       >
-        <WorkCover src={work.cover} title={work.title} className="w-[72px] shrink-0 rounded-lg" />
+        <WorkCover
+          src={work.cover}
+          title={work.title}
+          className="w-[72px] shrink-0 self-start rounded-lg"
+        />
         <div className="flex min-w-0 flex-1 flex-col py-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <h3 className="truncate font-serif text-base font-semibold">{work.title}</h3>
