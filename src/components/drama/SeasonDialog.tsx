@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { makeSeason, nextSeasonNumber } from "@/lib/drama/domain";
 import { WATCH_STATUS_LABEL, WATCH_STATUS_ORDER } from "@/lib/drama/labels";
 import { dramaStore } from "@/lib/drama/store";
@@ -17,7 +18,6 @@ export function SeasonDialog({
   onSaved,
 }: {
   work: Work;
-  /** 未提供代表新增 */
   season?: Season | undefined;
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -25,7 +25,6 @@ export function SeasonDialog({
 }) {
   const [number, setNumber] = useState("");
   const [total, setTotal] = useState("");
-  const [current, setCurrent] = useState("0");
   const [watched, setWatched] = useState("0");
   const [status, setStatus] = useState<WatchStatus>("want");
   const [note, setNote] = useState("");
@@ -35,7 +34,6 @@ export function SeasonDialog({
     if (!open) return;
     setNumber(String(season?.number ?? nextSeasonNumber(work)));
     setTotal(season ? String(season.totalEpisodes) : "");
-    setCurrent(String(season?.currentEpisodes ?? season?.totalEpisodes ?? 0));
     setWatched(String(season?.watchedEpisodes ?? 0));
     setStatus(season?.status ?? "want");
     setNote(season?.note ?? "");
@@ -45,15 +43,14 @@ export function SeasonDialog({
   function save() {
     const n = Number(number);
     const t = Number(total);
-    const c = Number(current);
     const w = Number(watched || 0);
     if (!Number.isInteger(n) || n < 1) return setError("季數需為 1 以上的整數");
     if (work.seasons.some((s) => s.number === n && s.id !== season?.id))
       return setError(`第 ${n} 季已存在`);
     if (!Number.isInteger(t) || t < 1) return setError("請輸入總集數（1 以上）");
     if (!Number.isInteger(w) || w < 0) return setError("已看集數不得小於 0");
-    if (!Number.isInteger(c) || c < 0 || c > t) return setError("更新集數需介於 0 與總集數");
-    if (w > c) return setError("已看集數不得超過目前更新集數");
+    if (w > t) return setError("已看集數不得超過總集數");
+
     const now = new Date().toISOString();
     const next = makeSeason(
       {
@@ -61,7 +58,7 @@ export function SeasonDialog({
         id: season?.id,
         number: n,
         totalEpisodes: t,
-        currentEpisodes: c,
+        currentEpisodes: t,
         watchedEpisodes: w,
         status,
         note: note.trim(),
@@ -85,7 +82,7 @@ export function SeasonDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <Field label="季數">
               <Input
                 inputMode="numeric"
@@ -102,14 +99,6 @@ export function SeasonDialog({
                 aria-label="總集數"
               />
             </Field>
-            <Field label="目前更新集數">
-              <Input
-                inputMode="numeric"
-                value={current}
-                onChange={(e) => setCurrent(e.target.value.replace(/\D/g, ""))}
-                aria-label="目前更新集數"
-              />
-            </Field>
             <Field label="已看集數">
               <Input
                 inputMode="numeric"
@@ -119,7 +108,7 @@ export function SeasonDialog({
               />
             </Field>
           </div>
-          <Field label="觀看狀態">
+          <Field label="本季觀看狀態">
             <NativeSelect
               value={status}
               onChange={(e) => setStatus(e.target.value as WatchStatus)}
@@ -133,7 +122,12 @@ export function SeasonDialog({
             </NativeSelect>
           </Field>
           <Field label="本季備註">
-            <Input value={note} onChange={(e) => setNote(e.target.value)} aria-label="本季備註" />
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              aria-label="本季備註"
+              rows={4}
+            />
           </Field>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button className="w-full" onClick={save}>
