@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Film, Search } from "lucide-react";
 import { AddFab } from "@/components/drama/AddFab";
+import { CategoryManager } from "@/components/drama/CategoryManager";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
 import { HomeDiscovery } from "@/components/drama/HomeDiscovery";
 import { Section } from "@/components/drama/fields";
@@ -36,7 +37,7 @@ function HomePage() {
           className="mt-5 flex h-12 items-center gap-3 rounded-2xl border border-border bg-card px-4 text-sm text-subtle-foreground shadow-card active:scale-[0.99]"
         >
           <Search className="size-[18px] shrink-0" />
-          <span className="truncate">搜尋劇名、別名、演員、分類…</span>
+          <span className="truncate">搜尋劇名、別名、分類、標籤…</span>
         </Link>
       </header>
 
@@ -89,7 +90,7 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
             還沒有觀看紀錄，在作品頁按「下一集」就會出現在這裡。
           </p>
         ) : (
-          <PosterRow works={watched} showUnread />
+          <PosterRow works={watched} showProgress showUnread />
         )}
       </Section>
 
@@ -105,10 +106,11 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
           </Link>
         }
       >
-        <PosterRow works={added} />
+        <PosterRow works={added} showProgress />
       </Section>
 
       <HomeDiscovery works={works} />
+      <CategoryManager works={works} />
     </div>
   );
 }
@@ -154,16 +156,18 @@ function StatCard({
 
 function PosterRow({
   works,
+  showProgress = false,
   showUnread = false,
 }: {
   works: NonNullable<ReturnType<typeof useWorks>>;
+  showProgress?: boolean;
   showUnread?: boolean;
 }) {
   return (
     <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
       {works.map((w, i) => (
         <div key={w.id} className="w-[112px] shrink-0">
-          <PosterCard work={w} eager={i < 3} showUnread={showUnread} />
+          <PosterCard work={w} eager={i < 3} showProgress={showProgress} showUnread={showUnread} />
         </div>
       ))}
     </div>
