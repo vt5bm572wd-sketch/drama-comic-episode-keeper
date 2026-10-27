@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { availableEpisodes, currentSeason, seasonPercent, workTotals } from "@/lib/drama/domain";
+import { SERIES_STATUS_LABEL } from "@/lib/drama/labels";
 import type { Work } from "@/lib/drama/types";
 import { EpisodeStepper } from "./EpisodeStepper";
 import { ProgressBar } from "./ProgressBar";
@@ -49,7 +50,7 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
         <WorkCover
           src={work.cover}
           title={work.title}
-          className="w-[72px] shrink-0 self-start rounded-lg"
+          className="w-[76px] shrink-0 self-start rounded-lg [&_img]:object-cover [&_img]:object-top"
         />
         <div className="flex min-w-0 flex-1 flex-col py-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -65,9 +66,10 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
               </span>
             )}
           </div>
-          <div className="mt-2">
-            <SeriesInfo work={work} />
-          </div>
+          <p className="mt-2 text-xs leading-relaxed text-subtle-foreground">
+            {SERIES_STATUS_LABEL[work.seriesStatus ?? "pending"]}｜更新至 {totals.total} 集
+            {work.updateDate ? `｜${work.updateDate.replaceAll("-", "/")} 更新` : ""}
+          </p>
           {work.rating > 0 && (
             <div className="mt-1.5">
               <RatingStars value={work.rating} size="sm" />
