@@ -2,17 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   HONGGUO_ORIGIN,
   parseDetailHtml,
+  parseSearchHtml,
   parseSearchJson,
   type LookupResult,
   type OnlineSearchResult,
 } from "./hongguo-data";
 import { hongguoDetailUrl, isValidSeriesId } from "./link-import";
-
-/**
- * 向紅果短劇官方網站取得公開作品資料。
- * 只會連到固定網域 hongguoduanju.com；網址一律由驗證過的數字 ID 或搜尋字串組成，
- * 不接受使用者提供的網址，避免被拿來連到任意站台。
- */
 
 const BROWSER_HEADERS = {
   "User-Agent":
@@ -58,8 +53,6 @@ export const lookupHongguoWork = createServerFn({ method: "POST" })
     if (parsed === "parse") {
       return { ok: false, code: "parse", message: "已連到官方網站，但無法讀出作品資料（可能是網站改版），請手動填寫。" };
     }
-
-    // 封面只回傳官方圖片網址，由瀏覽器直接載入，不再轉成 Base64
     return { ok: true, work: parsed };
   });
 
@@ -71,29 +64,41 @@ export const searchHongguo = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<OnlineSearchResult> => {
     if (!data.query) return { ok: true, items: [], page: 1, hasMore: false, total: 0 };
-    const url = new URL("/api/search/result", HONGGUO_ORIGIN);
-    url.searchParams.set("query", data.query);
-    if (data.page > 1) url.searchParams.set("page", String(data.page));
 
-    // 官方網站偶爾回傳空內容，重試一次
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(url, {
-          headers: { ...BROWSER_HEADERS, Accept: "application/json", Referer: `${HONGGUO_ORIGIN}/search` },
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-        });
-        if (!res.ok) {
-          console.error("hongguo search status", res.status);
-          if (attempt === 1) return { ok: false, message: `紅果短劇搜尋暫時無法使用（${res.status}），請稍後再試。` };
-          continue;
-        }
-        const text = await res.text();
-        if (!text.trim()) continue;
-        return parseSearchJson(JSON.parse(text), data.page);
-      } catch (e) {
-        console.error("hongguo search failed", e);
+    // 目前官網搜尋走 /search/{keyword}，搜尋資料放在頁面的 _ROUTER_DATA。
+    const pageUrl = new URL(`/search/${encodeURIComponent(data.query)}`, HONGGUO_ORIGIN);
+    if (data.page > 1) pageUrl.searchParams.set("page", String(data.page));
+
+    try {
+      const res = await fetch(pageUrl, {
+        headers: { ...BROWSER_HEADERS, Accept: "text/html" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (res.ok) {
+        const parsed = parseSearchHtml(await res.text(), data.page);
+        if (parsed.ok && parsed.items.length > 0) return parsed;
       }
+    } catch (e) {
+      console.error("hongguo search page failed", e);
     }
-    return { ok: false, message: "連不上紅果短劇搜尋，請稍後再試。" };
-  });
 
+    // 舊 endpoint 作為備援，避免官網暫時切換格式時完全失效。
+    const legacyUrl = new URL("/api/search/result", HONGGUO_ORIGIN);
+    legacyUrl.searchParams.set("query", data.query);
+    if (data.page > 1) legacyUrl.searchParams.set("page", String(data.page));
+    try {
+      const res = await fetch(legacyUrl, {
+        headers: { ...BROWSER_HEADERS, Accept: "application/json", Referer: `${HONGGUO_ORIGIN}/search` },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (res.ok) {
+        const text = await res.text();
+        if (text.trim()) return parseSearchJson(JSON.parse(text), data.page);
+      }
+    } catch (e) {
+      console.error("hongguo legacy search failed", e);
+    }
+
+    return { ok: false, message: "紅果線上搜尋目前無法取得結果，請稍後再試。" };
+  });
