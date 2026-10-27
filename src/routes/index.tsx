@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Film, Search } from "lucide-react";
 import { AddFab } from "@/components/drama/AddFab";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
+import { HomeDiscovery } from "@/components/drama/HomeDiscovery";
 import { Section } from "@/components/drama/fields";
 import { PosterCard } from "@/components/drama/WorkCards";
 import { Button } from "@/components/ui/button";
-import { computeStats, recentlyAdded, recentlyWatched, topCategories } from "@/lib/drama/domain";
+import { computeStats, recentlyAdded, recentlyWatched } from "@/lib/drama/domain";
 import { useWorks } from "@/lib/drama/store";
 
 export const Route = createFileRoute("/")({
@@ -39,22 +40,7 @@ function HomePage() {
         </Link>
       </header>
 
-      {works === null ? (
-        <LoadingBlock />
-      ) : works.length === 0 ? (
-        <EmptyState
-          icon={Film}
-          title="收藏還是空的"
-          description="新增第一部短劇或漫劇，開始記錄追劇進度。也可以到設定載入示範資料。"
-          action={
-            <Button asChild>
-              <Link to="/add">新增作品</Link>
-            </Button>
-          }
-        />
-      ) : (
-        <HomeContent works={works} />
-      )}
+      {works === null ? <LoadingBlock /> : <HomeContent works={works} />}
 
       <AddFab />
     </main>
@@ -65,7 +51,6 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
   const stats = computeStats(works);
   const watched = recentlyWatched(works, 10);
   const added = recentlyAdded(works, 10);
-  const cats = topCategories(works, 10);
   const demoCount = works.filter((w) => w.isDemo).length;
 
   return (
@@ -75,6 +60,19 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
         <StatCard label="追劇中" value={stats.watching} to="/watching" tab="watching" highlight />
         <StatCard label="已看完" value={stats.completed} to="/watching" tab="completed" />
       </div>
+
+      {works.length === 0 && (
+        <EmptyState
+          icon={Film}
+          title="收藏還是空的"
+          description="新增第一部短劇或漫劇，開始記錄追劇進度。"
+          action={
+            <Button asChild>
+              <Link to="/add">新增作品</Link>
+            </Button>
+          }
+        />
+      )}
 
       {demoCount > 0 && (
         <div className="mx-5 flex items-center justify-between gap-3 rounded-xl border border-gold/25 bg-gold/10 px-4 py-3 text-xs text-gold">
@@ -110,25 +108,7 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
         <PosterRow works={added} />
       </Section>
 
-      {cats.length > 0 && (
-        <Section title="常用分類">
-          <div className="grid grid-cols-2 gap-2.5">
-            {cats.map((c) => (
-              <Link
-                key={c.name}
-                to="/library"
-                search={{ category: c.name }}
-                className="surface flex items-center justify-between px-4 py-3.5 active:scale-[0.98]"
-              >
-                <span className="truncate font-serif text-[15px] font-semibold">{c.name}</span>
-                <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">
-                  {c.count} 部
-                </span>
-              </Link>
-            ))}
-          </div>
-        </Section>
-      )}
+      <HomeDiscovery works={works} />
     </div>
   );
 }

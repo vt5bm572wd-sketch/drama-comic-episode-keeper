@@ -2,10 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   HONGGUO_ORIGIN,
   parseDetailHtml,
+  parseRankingHtml,
   parseSearchHtml,
   parseSearchJson,
   type LookupResult,
   type OnlineSearchResult,
+  type RankingKind,
+  type RankingResult,
 } from "./hongguo-data";
 import { hongguoDetailUrl, isValidSeriesId } from "./link-import";
 
@@ -15,6 +18,40 @@ const BROWSER_HEADERS = {
   "Accept-Language": "zh-CN,zh;q=0.9",
 };
 const TIMEOUT_MS = 12000;
+const RANKING_TTL_MS = 10 * 60_000;
+const rankingCache = new Map<RankingKind, { expiresAt: number; result: RankingResult }>();
+
+export const getHongguoRanking = createServerFn({ method: "POST" })
+  .inputValidator((input: { kind: RankingKind; refresh?: boolean }) => ({
+    kind: input?.kind === "ai" ? ("ai" as const) : ("comic" as const),
+    refresh: input?.refresh === true,
+  }))
+  .handler(async ({ data }): Promise<RankingResult> => {
+    const cached = rankingCache.get(data.kind);
+    if (!data.refresh && cached && cached.expiresAt > Date.now()) return cached.result;
+    const path = data.kind === "comic" ? "/rank/hot-comic-drama" : "/rank/hot-ai-drama";
+    try {
+      const res = await fetch(new URL(path, HONGGUO_ORIGIN), {
+        headers: { ...BROWSER_HEADERS, Accept: "text/html", Referer: `${HONGGUO_ORIGIN}/` },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const items = parseRankingHtml(await res.text(), data.kind);
+      if (!items.length) throw new Error("ranking page did not contain a parseable list");
+      const result: RankingResult = {
+        ok: true,
+        kind: data.kind,
+        items,
+        updatedAt: new Date().toISOString(),
+      };
+      rankingCache.set(data.kind, { expiresAt: Date.now() + RANKING_TTL_MS, result });
+      return result;
+    } catch (error) {
+      console.error(`hongguo ${data.kind} ranking fetch failed`, error);
+      if (cached?.result.ok) return cached.result;
+      return { ok: false, kind: data.kind, message: "暫時無法取得榜單，請稍後重試。" };
+    }
+  });
 
 export const lookupHongguoWork = createServerFn({ method: "POST" })
   .inputValidator((input: { seriesId: string }) => {
@@ -34,24 +71,44 @@ export const lookupHongguoWork = createServerFn({ method: "POST" })
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (res.status === 404) {
-        return { ok: false, code: "not_found", message: "紅果短劇官方網站找不到這個作品 ID，可能已下架或 ID 有誤。" };
+        return {
+          ok: false,
+          code: "not_found",
+          message: "紅果短劇官方網站找不到這個作品 ID，可能已下架或 ID 有誤。",
+        };
       }
       if (!res.ok) {
         console.error("hongguo detail status", res.status);
-        return { ok: false, code: "unavailable", message: `紅果短劇官方網站暫時無法回應（${res.status}），請稍後再試或手動填寫。` };
+        return {
+          ok: false,
+          code: "unavailable",
+          message: `紅果短劇官方網站暫時無法回應（${res.status}），請稍後再試或手動填寫。`,
+        };
       }
       html = await res.text();
     } catch (e) {
       console.error("hongguo detail fetch failed", e);
-      return { ok: false, code: "unavailable", message: "連不上紅果短劇官方網站，請稍後再試或手動填寫。" };
+      return {
+        ok: false,
+        code: "unavailable",
+        message: "連不上紅果短劇官方網站，請稍後再試或手動填寫。",
+      };
     }
 
     const parsed = parseDetailHtml(html, seriesId);
     if (parsed === "not_found") {
-      return { ok: false, code: "not_found", message: "紅果短劇官方網站找不到這個作品 ID，可能已下架或 ID 有誤。" };
+      return {
+        ok: false,
+        code: "not_found",
+        message: "紅果短劇官方網站找不到這個作品 ID，可能已下架或 ID 有誤。",
+      };
     }
     if (parsed === "parse") {
-      return { ok: false, code: "parse", message: "已連到官方網站，但無法讀出作品資料（可能是網站改版），請手動填寫。" };
+      return {
+        ok: false,
+        code: "parse",
+        message: "已連到官方網站，但無法讀出作品資料（可能是網站改版），請手動填寫。",
+      };
     }
     return { ok: true, work: parsed };
   });
@@ -59,7 +116,10 @@ export const lookupHongguoWork = createServerFn({ method: "POST" })
 export const searchHongguo = createServerFn({ method: "POST" })
   .inputValidator((input: { query: string; page?: number }) => {
     const query = typeof input?.query === "string" ? input.query.trim().slice(0, 50) : "";
-    const page = Number.isInteger(input?.page) && (input.page as number) > 0 ? Math.min(input.page as number, 50) : 1;
+    const page =
+      Number.isInteger(input?.page) && (input.page as number) > 0
+        ? Math.min(input.page as number, 50)
+        : 1;
     return { query, page };
   })
   .handler(async ({ data }): Promise<OnlineSearchResult> => {
@@ -89,7 +149,11 @@ export const searchHongguo = createServerFn({ method: "POST" })
     if (data.page > 1) legacyUrl.searchParams.set("page", String(data.page));
     try {
       const res = await fetch(legacyUrl, {
-        headers: { ...BROWSER_HEADERS, Accept: "application/json", Referer: `${HONGGUO_ORIGIN}/search` },
+        headers: {
+          ...BROWSER_HEADERS,
+          Accept: "application/json",
+          Referer: `${HONGGUO_ORIGIN}/search`,
+        },
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (res.ok) {

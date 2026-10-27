@@ -38,16 +38,25 @@ export interface OnlineWork {
 export type LookupErrorCode = "invalid_id" | "not_found" | "unavailable" | "parse";
 
 export type LookupResult =
-  | { ok: true; work: OnlineWork }
-  | { ok: false; code: LookupErrorCode; message: string };
+  { ok: true; work: OnlineWork } | { ok: false; code: LookupErrorCode; message: string };
 
 export type OnlineSearchResult =
   | { ok: true; items: OnlineWork[]; page: number; hasMore: boolean; total: number }
   | { ok: false; message: string };
 
+export interface RankedWork extends OnlineWork {
+  rank: number;
+}
+
+export type RankingKind = "comic" | "ai";
+export type RankingResult =
+  | { ok: true; kind: RankingKind; items: RankedWork[]; updatedAt: string }
+  | { ok: false; kind: RankingKind; message: string };
+
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
-const str = (v: unknown): string => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
+const str = (v: unknown): string =>
+  typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
 
 function cleanText(v: unknown, max: number): string {
   return str(v).replace(/\s+/g, " ").trim().slice(0, max);
@@ -120,7 +129,10 @@ export function extractRouterData(html: string): Obj | null {
 }
 
 /** 解析作品頁 HTML；找不到作品回傳 "not_found"，格式不符回傳 "parse"。 */
-export function parseDetailHtml(html: string, seriesId: string): OnlineWork | "not_found" | "parse" {
+export function parseDetailHtml(
+  html: string,
+  seriesId: string,
+): OnlineWork | "not_found" | "parse" {
   const data = extractRouterData(html);
   if (!data) return "parse";
   const loader = data["loaderData"];
@@ -130,9 +142,12 @@ export function parseDetailHtml(html: string, seriesId: string): OnlineWork | "n
   const detail = page["seriesDetail"];
   if (!isObj(detail) || str(detail["series_id"]) !== seriesId) return "not_found";
   const social = isObj(page["seriesSocialInfo"]) ? page["seriesSocialInfo"] : {};
-  const heat = isObj(social["hot_score_data"]) ? cleanText(social["hot_score_data"]["text"], 30) : "";
+  const heat = isObj(social["hot_score_data"])
+    ? cleanText(social["hot_score_data"]["text"], 30)
+    : "";
   const episodeInfo = isObj(detail["series_episode_info"]) ? detail["series_episode_info"] : {};
-  const rating = typeof social["rating"] === "number" && social["rating"] > 0 ? social["rating"] : null;
+  const rating =
+    typeof social["rating"] === "number" && social["rating"] > 0 ? social["rating"] : null;
   return buildWork(seriesId, {
     title: detail["series_name"],
     cover: detail["series_cover"],
@@ -147,7 +162,16 @@ export function parseDetailHtml(html: string, seriesId: string): OnlineWork | "n
 
 function buildWork(
   seriesId: string,
-  raw: { title: unknown; cover: unknown; synopsis: unknown; actors: unknown[]; tags: unknown[]; episodes: unknown; heat: string; rating: number | null },
+  raw: {
+    title: unknown;
+    cover: unknown;
+    synopsis: unknown;
+    actors: unknown[];
+    tags: unknown[];
+    episodes: unknown;
+    heat: string;
+    rating: number | null;
+  },
 ): OnlineWork | "parse" {
   const title = cleanText(raw.title, MAX_TITLE);
   if (!title) return "parse";
@@ -156,8 +180,8 @@ function buildWork(
     title,
     coverUrl: isAllowedImageUrl(raw.cover) ? raw.cover : null,
     synopsis: str(raw.synopsis).trim().slice(0, MAX_SYNOPSIS),
-    actors: cleanList(raw.actors.map((a) => (isObj(a) ? a["nickname"] ?? a["name"] : a))),
-    tags: cleanList(raw.tags.map((t) => (isObj(t) ? t["name"] ?? t["title"] : t))),
+    actors: cleanList(raw.actors.map((a) => (isObj(a) ? (a["nickname"] ?? a["name"]) : a))),
+    tags: cleanList(raw.tags.map((t) => (isObj(t) ? (t["name"] ?? t["title"]) : t))),
     totalEpisodes: toPositiveInt(raw.episodes),
     heat: raw.heat || null,
     rating: raw.rating,
@@ -226,9 +250,21 @@ export function parseSearchHtml(html: string, page = 1): OnlineSearchResult {
         title: value["series_title"] ?? value["series_name"] ?? value["title"] ?? value["name"],
         cover: value["series_cover"] ?? value["cover"] ?? value["cover_url"],
         synopsis: value["series_intro"] ?? value["intro"] ?? value["description"],
-        actors: Array.isArray(value["celebrities"]) ? value["celebrities"] : Array.isArray(value["actors"]) ? value["actors"] : [],
-        tags: Array.isArray(value["category_list"]) ? value["category_list"] : Array.isArray(value["tags"]) ? value["tags"] : [],
-        episodes: episodeInfo["episode_total_cnt"] ?? value["episode_cnt"] ?? value["total_episode"] ?? value["totalEpisodes"],
+        actors: Array.isArray(value["celebrities"])
+          ? value["celebrities"]
+          : Array.isArray(value["actors"])
+            ? value["actors"]
+            : [],
+        tags: Array.isArray(value["category_list"])
+          ? value["category_list"]
+          : Array.isArray(value["tags"])
+            ? value["tags"]
+            : [],
+        episodes:
+          episodeInfo["episode_total_cnt"] ??
+          value["episode_cnt"] ??
+          value["total_episode"] ??
+          value["totalEpisodes"],
         heat: cleanText(hot["text"] ?? value["hot_score"] ?? value["heat"], 30),
         rating: typeof ratingRaw === "number" && ratingRaw > 0 ? ratingRaw : null,
       });
@@ -243,6 +279,70 @@ export function parseSearchHtml(html: string, page = 1): OnlineSearchResult {
 
   visit(data);
   return { ok: true, items, page, hasMore: false, total: items.length };
+}
+
+/** Parse the official server-rendered Hongguo ranking page. */
+export function parseRankingHtml(html: string, kind: RankingKind): RankedWork[] {
+  const list = [...html.matchAll(/<ol\b([^>]*)>([\s\S]*?)<\/ol>/gi)].find((match) => {
+    const label = match[1] ?? "";
+    return (kind === "comic" ? /漫剧热播榜/ : /AI剧热播榜/).test(label);
+  })?.[2];
+  if (!list) return [];
+  const rows: RankedWork[] = [];
+  for (const match of list.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/gi)) {
+    const article = match[1] ?? "";
+    const href = article.match(/href="\/detail\?series_id=(\d+)"/)?.[1];
+    const titleRaw = href
+      ? article.match(
+          new RegExp(`<h2[^>]*id="rank-title-${href}"[^>]*>([\\s\\S]*?)<\\/h2>`, "i"),
+        )?.[1]
+      : undefined;
+    const coverRaw = article.match(/<img\b[^>]*class="[^"]*pc-cover[^"]*"[^>]*src="([^"]+)"/i)?.[1];
+    const rankRaw = article.match(/class="[^"]*pc-badge-number[^"]*"[^>]*>(\d+)</i)?.[1];
+    const heatRaw = article.match(
+      /class="[^"]*pc-metrics[^"]*"[^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/i,
+    )?.[1];
+    if (!href || !titleRaw) continue;
+    const title = decodeHtmlText(titleRaw);
+    const rank = Number(rankRaw);
+    const coverUrl = decodeHtmlText(coverRaw ?? "");
+    const heat = decodeHtmlText((heatRaw ?? "").replace(/<[^>]*>/g, " "));
+    if (!title || !Number.isInteger(rank) || rank < 1) continue;
+    rows.push({
+      seriesId: href,
+      title,
+      coverUrl: isAllowedImageUrl(coverUrl) ? coverUrl : null,
+      synopsis: "",
+      actors: [],
+      tags: [...article.matchAll(/<p class="[^"]*pc-categories[^"]*">([\s\S]*?)<\/p>/gi)]
+        .flatMap((m) =>
+          [...(m[1] ?? "").matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map((x) =>
+            decodeHtmlText(x[1] ?? ""),
+          ),
+        )
+        .filter(Boolean),
+      totalEpisodes: null,
+      heat: heat || null,
+      rating: null,
+      sourceUrl: hongguoDetailUrl(href),
+      rank,
+    });
+  }
+  return rows.sort((a, b) => a.rank - b.rank).slice(0, 10);
+}
+
+function decodeHtmlText(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&#x27;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([\da-f]+);/gi, (_, n: string) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /* ---------- 轉成表單可用的資料 ---------- */
