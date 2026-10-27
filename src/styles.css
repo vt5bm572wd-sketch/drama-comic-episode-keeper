@@ -238,12 +238,45 @@ main > div.relative > .absolute.inset-x-0.bottom-0 {
   -webkit-transform: translateZ(0);
 }
 
-/* iOS renders date text inside a private WebKit sub-element; center that value explicitly. */
+/* iOS date controls have an intrinsic width that can overflow narrow wrappers. */
+form > div:has(#update-date) {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
 #update-date {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
   text-align: center !important;
 }
 
 #update-date::-webkit-date-and-time-value {
-  text-align: center !important;
   width: 100%;
+  min-width: 0;
+  text-align: center !important;
+}
+
+/* iPhone Home Screen / standalone mode: use the real safe area instead of Safari toolbar compensation. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-background);
+  }
+
+  .page-header-clear {
+    padding-top: calc(env(safe-area-inset-top) + 1rem) !important;
+  }
+
+  .pt-safe {
+    padding-top: calc(env(safe-area-inset-top) + 0.75rem) !important;
+  }
+
+  .nav-bar {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
 }
