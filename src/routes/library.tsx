@@ -7,7 +7,8 @@ import { NativeSelect } from "@/components/drama/fields";
 import { PageHeader } from "@/components/drama/PageHeader";
 import { PosterCard, WorkRow } from "@/components/drama/WorkCards";
 import { Button } from "@/components/ui/button";
-import { filterAndSort, topCategories } from "@/lib/drama/domain";
+import { useCategoryOptions } from "@/lib/drama/category-options";
+import { filterAndSort } from "@/lib/drama/domain";
 import {
   COLLECT_STATUS_LABEL,
   COLLECT_STATUS_ORDER,
@@ -61,13 +62,13 @@ function LibraryPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const works = useWorks();
+  const categories = useCategoryOptions();
 
   const update = (patch: Partial<LibrarySearch>) =>
     navigate({ to: ".", search: (prev) => ({ ...prev, ...patch }), replace: true });
 
   const view = search.view ?? "list";
   const list = works ? filterAndSort(works, search) : [];
-  const cats = works ? topCategories(works, 30) : [];
   const hasFilter = !!(search.type || search.watch || search.collect || search.category);
 
   return (
@@ -117,18 +118,18 @@ function LibraryPage() {
               ))}
             </ChipRow>
 
-            {cats.length > 0 && (
+            {categories.length > 0 && (
               <ChipRow>
                 <Chip active={!search.category} onClick={() => update({ category: undefined })}>
                   全部分類
                 </Chip>
-                {cats.map((c) => (
+                {categories.map((category) => (
                   <Chip
-                    key={c.name}
-                    active={search.category === c.name}
-                    onClick={() => update({ category: search.category === c.name ? undefined : c.name })}
+                    key={category}
+                    active={search.category === category}
+                    onClick={() => update({ category: search.category === category ? undefined : category })}
                   >
-                    {c.name}
+                    {category}
                   </Chip>
                 ))}
               </ChipRow>
@@ -199,7 +200,7 @@ function LibraryPage() {
             ) : view === "grid" ? (
               <div className="grid grid-cols-3 gap-x-2 gap-y-5">
                 {list.map((w, i) => (
-                  <PosterCard key={w.id} work={w} eager={i < 6} />
+                  <PosterCard key={w.id} work={w} eager={i < 6} showProgress />
                 ))}
               </div>
             ) : (
