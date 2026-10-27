@@ -16,7 +16,7 @@ export function PageHeader({
 }) {
   const router = useRouter();
   return (
-    <header className="pt-safe relative isolate z-20 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 bg-background px-5 pb-4 [filter:none] [backdrop-filter:none] [-webkit-backdrop-filter:none]">
+    <header className="relative isolate z-20 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 bg-background px-5 pb-4 pt-[max(calc(env(safe-area-inset-top)+2.75rem),5.5rem)] [filter:none] [backdrop-filter:none] [-webkit-backdrop-filter:none]">
       <div className="relative z-10 flex min-w-0 items-center gap-1 [filter:none]">
         {back && (
           <Button
