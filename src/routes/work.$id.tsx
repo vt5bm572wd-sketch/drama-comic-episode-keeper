@@ -3,7 +3,6 @@ import { ChevronLeft, FileQuestion, FolderInput, Pencil, Plus, Trash2 } from "lu
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { SeriesInfo } from "@/components/drama/SeriesInfo";
-import { CategoryPicker } from "@/components/drama/CustomCategories";
 import { Chip, ChipRow } from "@/components/drama/Chip";
 import { ConfirmDialog } from "@/components/drama/ConfirmDialog";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
@@ -15,7 +14,6 @@ import { SeasonDialog } from "@/components/drama/SeasonDialog";
 import { DemoBadge, StatusBadge, TypeBadge } from "@/components/drama/StatusBadge";
 import { WorkCover } from "@/components/drama/WorkCover";
 import { Button } from "@/components/ui/button";
-import { useCoverSrc } from "@/hooks/use-cover-src";
 import { currentSeason, sortSeasons, workTotals } from "@/lib/drama/domain";
 import { hongguoDetailUrl } from "@/lib/drama/link-import";
 import {
@@ -82,7 +80,6 @@ function WorkDetail({ work }: { work: Work }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSeasonDelete, setConfirmSeasonDelete] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
-  const coverSrc = useCoverSrc(work.cover);
 
   const selectSeason = (seasonId: string) =>
     navigate({
@@ -96,18 +93,7 @@ function WorkDetail({ work }: { work: Work }) {
     <main className="pb-nav">
       {/* 封面主視覺 */}
       <div className="relative">
-        <div className="relative h-[300px] overflow-hidden">
-          {coverSrc ? (
-            <img
-              src={coverSrc}
-              referrerPolicy="no-referrer"
-              alt=""
-              aria-hidden
-              className="h-full w-full scale-110 object-cover opacity-40 blur-md"
-            />
-          ) : (
-            <div className="h-full w-full bg-elevated" />
-          )}
+        <div className="relative h-[300px] overflow-hidden bg-elevated">
           <div className="poster-fade absolute inset-0" />
         </div>
         <div className="pt-safe absolute inset-x-0 top-0 flex items-center justify-between px-3">
@@ -193,13 +179,6 @@ function WorkDetail({ work }: { work: Work }) {
             </label>
           </div>
           <SeriesInfo work={work} />
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">自訂分類</p>
-            <CategoryPicker
-              value={work.customCategories ?? []}
-              onChange={(ids) => dramaStore.update(work.id, { customCategories: ids })}
-            />
-          </div>
           <p className="text-xs text-subtle-foreground">
             全系列進度 {totals.watched} / {totals.total} 集（{totals.percent}%）
           </p>
