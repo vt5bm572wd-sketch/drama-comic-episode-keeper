@@ -163,11 +163,10 @@
   input,
   textarea,
   select {
-    font-size: 16px; /* 避免 iOS Safari 自動放大 */
+    font-size: 16px;
   }
 }
 
-/* iPhone 安全區域 */
 @utility pt-safe {
   padding-top: clamp(0.75rem, env(safe-area-inset-top), 3rem);
 }
@@ -212,7 +211,6 @@
   letter-spacing: 0.32em;
 }
 
-/* Keep foreground controls and text in the work-detail hero above any faded/blurred background layer on iPhone Safari. */
 main > div.relative > .pt-safe.absolute.inset-x-0.top-0,
 main > div.relative > .absolute.inset-x-0.bottom-0 {
   z-index: 20;
@@ -223,7 +221,6 @@ main > div.relative > .absolute.inset-x-0.bottom-0 {
   opacity: 1 !important;
 }
 
-/* iOS Safari: force page-header content onto its own crisp compositor layer. */
 .page-header-clear,
 .page-header-clear * {
   filter: none !important;
@@ -238,29 +235,46 @@ main > div.relative > .absolute.inset-x-0.bottom-0 {
   -webkit-transform: translateZ(0);
 }
 
-/* iOS date controls have an intrinsic width that can overflow narrow wrappers. */
 form > div:has(#update-date) {
   width: 100% !important;
-  max-width: 100% !important;
+  max-width: none !important;
   min-width: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  overflow: hidden !important;
 }
 
 #update-date {
   display: block !important;
+  inline-size: 100% !important;
   width: 100% !important;
+  min-inline-size: 0 !important;
   min-width: 0 !important;
+  max-inline-size: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+  margin: 0 !important;
+  padding-inline: 0.75rem !important;
+  overflow: hidden !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
   text-align: center !important;
 }
 
 #update-date::-webkit-date-and-time-value {
-  width: 100%;
-  min-width: 0;
+  inline-size: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
   text-align: center !important;
 }
 
-/* iPhone Home Screen / standalone mode: use the real safe area instead of Safari toolbar compensation. */
+#update-date::-webkit-calendar-picker-indicator {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 @media (display-mode: standalone) {
   html,
   body {
