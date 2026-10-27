@@ -176,7 +176,6 @@ export function matchesQuery(work: Work, query: string): boolean {
   const haystack = [
     work.title,
     ...work.aliases,
-    ...work.actors,
     ...work.categories,
     ...work.tags,
     work.synopsis,
