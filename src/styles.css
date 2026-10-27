@@ -1,0 +1,214 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * NINA DRAMA design system — 暗黑影院
+ * 深黑 / 石墨灰為底，低飽和紫色點綴。所有顏色使用 oklch。
+ */
+
+@theme inline {
+  --font-sans: "Noto Sans TC", ui-sans-serif, system-ui, -apple-system, "PingFang TC", sans-serif;
+  --font-display: "Cormorant Garamond", "Noto Serif TC", serif;
+  --font-serif: "Noto Serif TC", "Cormorant Garamond", serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-elevated: var(--elevated);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-gold: var(--gold);
+
+  --color-status-want: var(--status-want);
+  --color-status-watching: var(--status-watching);
+  --color-status-completed: var(--status-completed);
+  --color-status-paused: var(--status-paused);
+  --color-status-dropped: var(--status-dropped);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-card: var(--shadow-card-value);
+  --shadow-float: var(--shadow-float-value);
+  --shadow-poster: var(--shadow-poster-value);
+}
+
+:root {
+  color-scheme: dark;
+  --radius: 0.875rem;
+
+  --background: oklch(0.135 0.004 285);
+  --foreground: oklch(0.95 0.006 285);
+  --card: oklch(0.185 0.006 285);
+  --card-foreground: oklch(0.95 0.006 285);
+  --elevated: oklch(0.225 0.008 285);
+  --popover: oklch(0.205 0.007 285);
+  --popover-foreground: oklch(0.95 0.006 285);
+
+  --primary: oklch(0.7 0.085 300);
+  --primary-foreground: oklch(0.16 0.02 300);
+  --primary-soft: oklch(0.7 0.085 300 / 14%);
+
+  --secondary: oklch(0.24 0.008 285);
+  --secondary-foreground: oklch(0.92 0.006 285);
+  --muted: oklch(0.22 0.006 285);
+  --muted-foreground: oklch(0.7 0.01 285);
+  --subtle-foreground: oklch(0.56 0.01 285);
+  --accent: oklch(0.26 0.012 295);
+  --accent-foreground: oklch(0.95 0.006 285);
+
+  --destructive: oklch(0.62 0.15 22);
+  --destructive-foreground: oklch(0.97 0.01 22);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 11%);
+  --ring: oklch(0.7 0.085 300 / 60%);
+  --gold: oklch(0.82 0.1 82);
+
+  --status-want: oklch(0.74 0.05 250);
+  --status-watching: oklch(0.74 0.09 300);
+  --status-completed: oklch(0.76 0.07 160);
+  --status-paused: oklch(0.8 0.08 80);
+  --status-dropped: oklch(0.68 0.09 25);
+
+  --shadow-card-value: 0 1px 0 0 oklch(1 0 0 / 4%) inset, 0 10px 30px -14px oklch(0 0 0 / 70%);
+  --shadow-float-value: 0 12px 32px -8px oklch(0.55 0.1 300 / 45%), 0 4px 12px -4px oklch(0 0 0 / 60%);
+  --shadow-poster-value: 0 18px 40px -18px oklch(0 0 0 / 85%);
+
+  --gradient-poster-fade: linear-gradient(
+    180deg,
+    oklch(0.135 0.004 285 / 0%) 0%,
+    oklch(0.135 0.004 285 / 55%) 55%,
+    oklch(0.135 0.004 285) 100%
+  );
+  --gradient-hero-glow: radial-gradient(
+    120% 70% at 50% 0%,
+    oklch(0.7 0.085 300 / 12%) 0%,
+    oklch(0.135 0.004 285 / 0%) 60%
+  );
+
+  --chart-1: oklch(0.7 0.085 300);
+  --chart-2: oklch(0.76 0.07 160);
+  --chart-3: oklch(0.8 0.08 80);
+  --chart-4: oklch(0.74 0.05 250);
+  --chart-5: oklch(0.68 0.09 25);
+  --sidebar: oklch(0.185 0.006 285);
+  --sidebar-foreground: oklch(0.95 0.006 285);
+  --sidebar-primary: oklch(0.7 0.085 300);
+  --sidebar-primary-foreground: oklch(0.16 0.02 300);
+  --sidebar-accent: oklch(0.24 0.008 285);
+  --sidebar-accent-foreground: oklch(0.95 0.006 285);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.7 0.085 300 / 60%);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-background);
+    background-image: var(--gradient-hero-glow);
+    background-repeat: no-repeat;
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* 避免 iOS Safari 自動放大 */
+  }
+}
+
+/* iPhone 安全區域 */
+@utility pt-safe {
+  padding-top: max(env(safe-area-inset-top), 0.75rem);
+}
+@utility pb-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 6.5rem);
+}
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+@utility bottom-above-nav {
+  bottom: calc(env(safe-area-inset-bottom) + 5.25rem);
+}
+
+@utility surface {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-xl);
+}
+
+@utility nav-bar {
+  background-color: oklch(0.155 0.005 285 / 94%);
+  border-top: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@utility poster-fade {
+  background-image: var(--gradient-poster-fade);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility brand-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.32em;
+}
+

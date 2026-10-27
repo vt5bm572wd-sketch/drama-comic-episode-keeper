@@ -1,0 +1,154 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Camera, FileJson, Link2, Share2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { LinkImportPanel, type LinkMode, type OnlineDetails } from "@/components/drama/LinkImportPanel";
+import { PageHeader } from "@/components/drama/PageHeader";
+import { WorkForm, type WorkPrefill } from "@/components/drama/WorkForm";
+import { guessWorkType, tagsToCategories } from "@/lib/drama/hongguo-data";
+import { findWorkBySeriesId, hongguoDetailUrl, isValidSeriesId, makeSource } from "@/lib/drama/link-import";
+import { dramaStore } from "@/lib/drama/store";
+import type { WorkSource } from "@/lib/drama/types";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/add")({
+  validateSearch: (s: Record<string, unknown>): { sid?: string | undefined } => ({
+    sid: typeof s["sid"] === "string" && isValidSeriesId(s["sid"]) ? s["sid"] : undefined,
+  }),
+  head: () => ({
+    meta: [
+      { title: "新增作品｜NINA DRAMA" },
+      { name: "description", content: "手動新增短劇或漫劇，或貼上紅果短劇網址與分享連結，自動取得作品資料。" },
+      { property: "og:title", content: "新增作品｜NINA DRAMA" },
+      { property: "og:description", content: "手動新增短劇或漫劇到收藏，支援貼上作品網址。" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: AddPage,
+});
+
+const LINK_IMPORTS: { mode: LinkMode; icon: typeof Link2; label: string }[] = [
+  { mode: "url", icon: Link2, label: "作品網址" },
+  { mode: "share", icon: Share2, label: "分享連結" },
+];
+
+const FUTURE_IMPORTS = [
+  { icon: Camera, label: "截圖辨識" },
+  { icon: FileJson, label: "備份匯入" },
+];
+
+function AddPage() {
+  const navigate = useNavigate();
+  const { sid } = Route.useSearch();
+  const [mode, setMode] = useState<LinkMode | null>(sid ? "url" : null);
+  const [source, setSource] = useState<WorkSource | null>(null);
+  const [prefill, setPrefill] = useState<WorkPrefill | null>(null);
+
+  const applyTitle = (title: string, force: boolean) =>
+    setPrefill((p) => ({ title, force, nonce: (p?.nonce ?? 0) + 1 }));
+
+  function applyDetails({ work }: OnlineDetails, force: boolean) {
+    // 線上封面直接保存官方圖片網址，不轉成 Base64
+    const cover = work.coverUrl;
+    setPrefill((p) => ({
+      nonce: (p?.nonce ?? 0) + 1,
+      force,
+      title: work.title,
+      cover,
+      synopsis: work.synopsis,
+      actors: work.actors,
+      tags: work.tags,
+      categories: tagsToCategories(work.tags),
+      type: guessWorkType(work),
+      totalEpisodes: work.totalEpisodes,
+    }));
+    if (force) toast.success("已用線上資料覆蓋表單");
+  }
+
+  return (
+    <main>
+      <PageHeader back title="新增作品" subtitle="貼上作品網址自動帶入，或手動填寫" />
+
+      <section className="mb-7 px-5" aria-label="其他匯入方式">
+        <p className="mb-2 text-[13px] font-medium text-muted-foreground">其他匯入方式</p>
+        <div className="grid grid-cols-4 gap-2">
+          {LINK_IMPORTS.map(({ mode: m, icon: Icon, label }) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={mode === m}
+              onClick={() => {
+                setMode((cur) => (cur === m ? null : m));
+                setSource(null);
+              }}
+              className={cn(
+                "flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-1 py-3 transition-colors active:scale-95",
+                mode === m
+                  ? "border-primary/50 bg-primary-soft text-primary"
+                  : "border-border bg-card text-foreground hover:border-primary/40",
+              )}
+            >
+              <Icon className="size-5" strokeWidth={1.6} />
+              <span className="text-[11px]">{label}</span>
+              <span className="rounded bg-elevated px-1.5 py-px text-[9px] tracking-wider text-muted-foreground">紅果短劇</span>
+            </button>
+          ))}
+          {FUTURE_IMPORTS.map(({ icon: Icon, label }) => (
+            <button
+              key={label}
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-border bg-card/50 px-1 py-3 text-subtle-foreground opacity-70"
+            >
+              <Icon className="size-5" strokeWidth={1.6} />
+              <span className="text-[11px]">{label}</span>
+              <span className="rounded bg-elevated px-1.5 py-px text-[9px] tracking-wider">尚未開放</span>
+            </button>
+          ))}
+        </div>
+
+        {mode && (
+          <LinkImportPanel
+            key={`${mode}-${sid ?? ""}`}
+            mode={mode}
+            initialText={mode === "url" && sid ? hongguoDetailUrl(sid) : ""}
+            autoRecognize={mode === "url" && !!sid}
+            onDetails={(d, force) => applyDetails(d, force)}
+            onLinked={(r) => {
+              setSource(makeSource(r));
+              if (r.title) applyTitle(r.title, false);
+            }}
+            onUnlink={() => setSource(null)}
+            onApplyTitle={(t) => applyTitle(t, true)}
+          />
+        )}
+
+        <p className="mt-2 text-xs text-subtle-foreground">
+          截圖辨識為未來版本預留。JSON 備份匯入請至「設定」。
+        </p>
+      </section>
+
+      <WorkForm
+        submitLabel="保存作品"
+        source={source}
+        prefill={prefill}
+        onSubmit={(work) => {
+          if (work.source) {
+            const dup = findWorkBySeriesId(dramaStore.getSnapshot(), work.source.seriesId);
+            if (dup) {
+              toast.error(`《${dup.title}》已在收藏中（同一個作品 ID），未重複新增。`);
+              return;
+            }
+          }
+          if (dramaStore.add(work)) {
+            toast.success(`已新增《${work.title}》`);
+            navigate({ to: "/work/$id", params: { id: work.id }, replace: true });
+          }
+        }}
+      />
+    </main>
+  );
+}
+
