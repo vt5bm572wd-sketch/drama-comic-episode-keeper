@@ -131,6 +131,18 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideNav = pathname === "/add" || pathname.startsWith("/edit/");
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      document.querySelectorAll("h2").forEach((heading) => {
+        if (heading.textContent?.trim() === "演員") {
+          const section = heading.closest("section");
+          if (section) section.hidden = true;
+        }
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [pathname]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="mx-auto min-h-dvh w-full max-w-xl overflow-x-clip">
