@@ -16,7 +16,7 @@ export function WorkCover({
   return (
     <div
       className={cn(
-        "relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-elevated shadow-poster",
+        "relative aspect-[2/3] w-full shrink-0 overflow-hidden rounded-xl bg-elevated shadow-poster",
         className,
       )}
     >
@@ -28,7 +28,7 @@ export function WorkCover({
           loading={eager ? "eager" : "lazy"}
           width={768}
           height={1152}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover object-center"
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center">
@@ -41,4 +41,3 @@ export function WorkCover({
     </div>
   );
 }
-
