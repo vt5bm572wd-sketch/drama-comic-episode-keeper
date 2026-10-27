@@ -1,17 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { availableEpisodes, currentSeason, seasonPercent, workTotals } from "@/lib/drama/domain";
+import { currentSeason, workTotals } from "@/lib/drama/domain";
 import { SERIES_STATUS_LABEL } from "@/lib/drama/labels";
 import type { Work } from "@/lib/drama/types";
 import { EpisodeStepper } from "./EpisodeStepper";
 import { ProgressBar } from "./ProgressBar";
 import { RatingStars } from "./RatingStars";
 import { DemoBadge, StatusBadge } from "./StatusBadge";
-import { SeriesInfo } from "./SeriesInfo";
 import { WorkCover } from "./WorkCover";
 
 export function PosterCard({ work, eager }: { work: Work; eager?: boolean }) {
-  const season = currentSeason(work);
-  const percent = season ? seasonPercent(season) : 0;
   return (
     <Link
       to="/work/$id"
@@ -21,18 +18,8 @@ export function PosterCard({ work, eager }: { work: Work; eager?: boolean }) {
       <div className="relative">
         <WorkCover src={work.cover} title={work.title} eager={eager} />
         {work.isDemo && <DemoBadge className="absolute left-2 top-2" />}
-        {work.watchStatus === "watching" && season && (
-          <div className="absolute inset-x-2 bottom-2">
-            <ProgressBar value={percent} className="h-1 bg-background/60" />
-          </div>
-        )}
       </div>
-      <SeriesInfo work={work} />
       <p className="mt-2 truncate text-sm font-medium">{work.title}</p>
-      <p className="truncate text-xs text-subtle-foreground">
-        {work.seasons.length > 1 ? `${work.seasons.length} 季 · ` : ""}
-        {season ? `${season.watchedEpisodes}/${availableEpisodes(season)} 集` : ""}
-      </p>
     </Link>
   );
 }
@@ -64,9 +51,6 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
             <StatusBadge status={work.watchStatus} />
             <span className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               {SERIES_STATUS_LABEL[work.seriesStatus ?? "pending"]}
-            </span>
-            <span className="text-[11px] text-subtle-foreground">
-              共 {work.seasons.length} 季
             </span>
           </div>
 
