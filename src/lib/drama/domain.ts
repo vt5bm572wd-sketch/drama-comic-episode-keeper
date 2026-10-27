@@ -10,8 +10,6 @@ export function uid(prefix = "w"): string {
   return `${prefix}_${rand}`;
 }
 
-/* ---------- 集數與進度 ---------- */
-
 export function clampEpisode(value: number, total: number): number {
   const safeTotal = Math.max(0, Math.floor(Number.isFinite(total) ? total : 0));
   const v = Math.floor(Number.isFinite(value) ? value : 0);
@@ -45,7 +43,6 @@ export function currentSeason(work: Work): Season | undefined {
   return work.seasons.find((s) => s.id === work.currentSeasonId) ?? sortSeasons(work.seasons)[0];
 }
 
-/** 設定某季已觀看集數（自動限制在 0 ～ 總集數）。 */
 export function setSeasonProgress(
   work: Work,
   seasonId: string,
@@ -79,8 +76,6 @@ export function stepEpisode(
   return setSeasonProgress(work, seasonId, target.watchedEpisodes + delta, now);
 }
 
-/* ---------- 季數管理 ---------- */
-
 export type SeasonInput = { [K in keyof Season]?: Season[K] | undefined } & { number: number };
 
 export function makeSeason(partial: SeasonInput, now: string): Season {
@@ -103,10 +98,6 @@ export function nextSeasonNumber(work: Pick<Work, "seasons">): number {
   return work.seasons.reduce((m, s) => Math.max(m, s.number), 0) + 1;
 }
 
-/**
- * 把 source 作品的所有季數移到 target 系列底下。
- * 季數接在 target 最大季數之後，觀看進度、狀態、備註全部保留。
- */
 export function mergeIntoSeries(target: Work, source: Work, now = new Date().toISOString()): Work {
   if (target.id === source.id) return target;
   let next = nextSeasonNumber(target);
@@ -139,8 +130,6 @@ export function mergeIntoSeries(target: Work, source: Work, now = new Date().toI
   };
 }
 
-/* ---------- 統計 ---------- */
-
 export interface Stats {
   total: number;
   watching: number;
@@ -164,8 +153,6 @@ export function topCategories(works: Work[], limit = 8): { name: string; count: 
     .slice(0, limit);
 }
 
-/* ---------- 搜尋、篩選、排序 ---------- */
-
 function norm(s: string): string {
   return s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
 }
@@ -176,7 +163,6 @@ export function matchesQuery(work: Work, query: string): boolean {
   const haystack = [
     work.title,
     ...work.aliases,
-    ...work.actors,
     ...work.categories,
     ...work.tags,
     work.synopsis,
@@ -185,7 +171,6 @@ export function matchesQuery(work: Work, query: string): boolean {
   return haystack.some((field) => norm(field).includes(q));
 }
 
-/** 關鍵字搜尋；貼上作品網址或分享文字時改用作品 ID 精確比對。 */
 export function searchWorks(works: Work[], query: string): Work[] {
   if (!norm(query)) return [];
   const link = parseWorkLink(query);
@@ -236,8 +221,6 @@ export function recentlyAdded(works: Work[], limit = 10): Work[] {
   return [...works].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
 }
 
-/* ---------- 文字欄位工具 ---------- */
-
 export function splitList(input: string): string[] {
   return Array.from(
     new Set(
@@ -253,7 +236,6 @@ export function normalizeTitle(title: string): string {
   return norm(title).replace(/[《》「」『』"'（）()【】\[\]]/g, "");
 }
 
-/** 純衍生提示，絕不寫回個人手動追劇狀態。 */
 export function progressHint(work: Work): string {
   const { watched, total } = workTotals(work);
   const unread = Math.max(total - watched, 0);
