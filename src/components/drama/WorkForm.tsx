@@ -4,13 +4,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useCategoryOptions } from "@/lib/drama/category-options";
 import { saveCoverBlob } from "@/lib/drama/cover-store";
 import { validUpdateDate, clampEpisode, makeSeason, splitList, uid } from "@/lib/drama/domain";
 import { compressImage, compressImageBlob } from "@/lib/drama/image";
 import {
   COLLECT_STATUS_LABEL,
   COLLECT_STATUS_ORDER,
-  PRESET_CATEGORIES,
   WATCH_STATUS_LABEL,
   WATCH_STATUS_ORDER,
   WORK_TYPE_LABEL,
@@ -48,7 +48,6 @@ function toDraft(work?: Work) {
     aliases: work?.aliases.join("、") ?? "",
     cover: work?.cover ?? null,
     synopsis: work?.synopsis ?? "",
-    actors: work?.actors.join("、") ?? "",
     type: (work?.type ?? "short") as WorkType,
     categories: work?.categories ?? [],
     tags: work?.tags.join("、") ?? "",
@@ -107,6 +106,7 @@ export function WorkForm({
   source?: WorkSource | null | undefined;
   prefill?: WorkPrefill | null | undefined;
 }) {
+  const categoryOptions = useCategoryOptions();
   const [d, setD] = useState(() => {
     const draft = toDraft(initial);
     if (draft.seasons.length === 0) draft.seasons = [emptySeason(1)];
@@ -124,7 +124,6 @@ export function WorkForm({
       if (prefill.title && (f || !p.title.trim())) n.title = prefill.title;
       if (prefill.cover && (f || !p.cover)) n.cover = prefill.cover;
       if (prefill.synopsis && (f || !p.synopsis.trim())) n.synopsis = prefill.synopsis;
-      if (prefill.actors?.length && (f || !p.actors.trim())) n.actors = prefill.actors.join("、");
       if (prefill.tags?.length && (f || !p.tags.trim())) n.tags = prefill.tags.join("、");
       if (prefill.categories?.length) {
         n.categories = f
@@ -159,8 +158,6 @@ export function WorkForm({
       ...p,
       seasons: p.seasons.map((s) => (s.id === id ? { ...s, ...patch } : s)),
     }));
-
-  const allCats = Array.from(new Set([...PRESET_CATEGORIES, ...d.categories]));
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -252,7 +249,7 @@ export function WorkForm({
       aliases: splitList(d.aliases),
       cover: d.cover,
       synopsis: d.synopsis.trim(),
-      actors: splitList(d.actors),
+      actors: initial?.actors ?? [],
       type: d.type,
       categories: d.categories,
       tags: splitList(d.tags),
@@ -350,18 +347,17 @@ export function WorkForm({
         <Textarea id="synopsis" value={d.synopsis} onChange={(e) => set("synopsis", e.target.value)} rows={4} />
       </Field>
 
-      <Field label="演員" htmlFor="actors" hint="多位演員用頓號或逗號分隔">
-        <Input id="actors" value={d.actors} onChange={(e) => set("actors", e.target.value)} />
-      </Field>
-
       <Field label="分類">
         <div className="flex flex-wrap gap-2">
-          {allCats.map((c) => (
+          {categoryOptions.map((c) => (
             <Chip key={c} active={d.categories.includes(c)} onClick={() => set("categories", d.categories.includes(c) ? d.categories.filter((x) => x !== c) : [...d.categories, c])}>
               {c}
             </Chip>
           ))}
         </div>
+        {categoryOptions.length === 0 && (
+          <p className="text-xs text-subtle-foreground">請先到首頁「常用分類 → 設定」新增分類。</p>
+        )}
       </Field>
 
       <Field label="標籤" htmlFor="tags" hint="多個標籤用頓號或逗號分隔">
