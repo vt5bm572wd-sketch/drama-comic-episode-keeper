@@ -89,7 +89,7 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
             還沒有觀看紀錄，在作品頁按「下一集」就會出現在這裡。
           </p>
         ) : (
-          <PosterRow works={watched} />
+          <PosterRow works={watched} showUnread />
         )}
       </Section>
 
@@ -152,12 +152,18 @@ function StatCard({
   );
 }
 
-function PosterRow({ works }: { works: NonNullable<ReturnType<typeof useWorks>> }) {
+function PosterRow({
+  works,
+  showUnread = false,
+}: {
+  works: NonNullable<ReturnType<typeof useWorks>>;
+  showUnread?: boolean;
+}) {
   return (
     <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
       {works.map((w, i) => (
         <div key={w.id} className="w-[112px] shrink-0">
-          <PosterCard work={w} eager={i < 3} />
+          <PosterCard work={w} eager={i < 3} showUnread={showUnread} />
         </div>
       ))}
     </div>
