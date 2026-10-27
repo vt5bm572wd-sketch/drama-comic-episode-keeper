@@ -148,6 +148,7 @@
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -163,7 +164,21 @@
   input,
   textarea,
   select {
-    font-size: 16px; /* 避免 iOS Safari 自動放大 */
+    font-size: 16px;
+  }
+
+  /* Lovable may inject an editor badge into published previews. Hide it when
+     it is represented in the document DOM; production content itself does not
+     depend on these elements. */
+  iframe[src*="lovable.dev"],
+  iframe[src*="lovable.app"][title*="Lovable"],
+  [data-lovable-badge],
+  [data-testid*="lovable" i],
+  [class*="lovable-badge" i],
+  [id*="lovable-badge" i] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 }
 
