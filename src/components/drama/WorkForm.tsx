@@ -16,8 +16,6 @@ import {
   WORK_TYPE_LABEL,
 } from "@/lib/drama/labels";
 import type { CollectStatus, WatchStatus, Work, WorkSource, WorkType } from "@/lib/drama/types";
-import { CategoryPicker } from "./CustomCategories";
-import { dramaStore } from "@/lib/drama/store";
 import { SERIES_STATUS_LABEL } from "@/lib/drama/labels";
 import type { SeriesStatus } from "@/lib/drama/types";
 import { Chip } from "./Chip";
@@ -41,7 +39,6 @@ function toDraft(work?: Work) {
   return {
     updateDate: work?.updateDate ?? "",
     seriesStatus: (work?.seriesStatus ?? "pending") as SeriesStatus,
-    customCategories: work?.customCategories ?? [],
     title: work?.title ?? "",
     aliases: work?.aliases.join("、") ?? "",
     cover: work?.cover ?? null,
@@ -81,10 +78,8 @@ const emptySeason = (n: number): SeasonDraft => ({
   note: "",
 });
 
-/** 從外部（連結辨識、線上作品資料）帶入欄位；nonce 變動才會套用。 */
 export interface WorkPrefill {
   nonce: number;
-  /** false 時只填入目前空白的欄位 */
   force: boolean;
   title?: string | undefined;
   cover?: string | null | undefined;
@@ -106,7 +101,6 @@ export function WorkForm({
   initial?: Work;
   submitLabel: string;
   onSubmit: (work: Work) => void;
-  /** 未傳入時沿用 initial 的來源；傳入 null 代表不連結來源 */
   source?: WorkSource | null | undefined;
   prefill?: WorkPrefill | null | undefined;
 }) {
@@ -156,7 +150,6 @@ export function WorkForm({
       }
       return rest;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill?.nonce]);
 
   const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) => setD((p) => ({ ...p, [k]: v }));
@@ -171,7 +164,6 @@ export function WorkForm({
     try {
       const blob = await compressImageBlob(file);
       try {
-        // 圖片本體存 IndexedDB，作品資料只記參照，避免撐爆 localStorage
         set("cover", await saveCoverBlob(blob));
       } catch (e) {
         console.error("cover save failed, using small inline cover", e);
@@ -252,9 +244,7 @@ export function WorkForm({
     const work: Work = {
       updateDate: d.updateDate || null,
       seriesStatus: d.seriesStatus,
-      customCategories: d.customCategories.filter((id) =>
-        dramaStore.getCategories().some((c) => c.id === id),
-      ),
+      customCategories: [],
       id: initial?.id ?? uid("w"),
       title: d.title.trim(),
       aliases: splitList(d.aliases),
@@ -285,7 +275,6 @@ export function WorkForm({
 
   return (
     <form onSubmit={submit} className="space-y-7 px-5 pb-32" noValidate>
-      {/* 封面 + 劇名 */}
       <div className="grid grid-cols-[104px_minmax(0,1fr)] gap-4">
         <div className="space-y-2">
           <button
@@ -305,53 +294,24 @@ export function WorkForm({
           </button>
           {d.cover && (
             <div className="grid grid-cols-2 gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="px-0"
-                onClick={() => fileRef.current?.click()}
-              >
+              <Button type="button" variant="ghost" size="sm" className="px-0" onClick={() => fileRef.current?.click()}>
                 更換
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="px-0 text-destructive"
-                onClick={() => set("cover", null)}
-              >
+              <Button type="button" variant="ghost" size="sm" className="px-0 text-destructive" onClick={() => set("cover", null)}>
                 移除
               </Button>
             </div>
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
         </div>
         <div className="min-w-0 space-y-4">
           <Field label="劇名 *" htmlFor="title" error={errors["title"]}>
-            <Input
-              id="title"
-              value={d.title}
-              onChange={(e) => set("title", e.target.value)}
-              placeholder="例如：雪落長安"
-              aria-invalid={!!errors["title"]}
-            />
+            <Input id="title" value={d.title} onChange={(e) => set("title", e.target.value)} placeholder="例如：雪落長安" aria-invalid={!!errors["title"]} />
           </Field>
           <Field label="類型">
             <div className="grid grid-cols-2 gap-2">
               {(["short", "comic"] as WorkType[]).map((t) => (
-                <Chip
-                  key={t}
-                  active={d.type === t}
-                  onClick={() => set("type", t)}
-                  className="h-11 justify-center rounded-xl"
-                >
+                <Chip key={t} active={d.type === t} onClick={() => set("type", t)} className="h-11 justify-center rounded-xl">
                   {WORK_TYPE_LABEL[t]}
                 </Chip>
               ))}
@@ -360,55 +320,23 @@ export function WorkForm({
         </div>
       </div>
 
-      <Field
-        label="劇集更新日期"
-        error={errors["updateDate"]}
-        htmlFor="update-date"
-        hint="作品實際更新內容的日期，不是資料修改日期"
-      >
-        <Input
-          id="update-date"
-          type="date"
-          value={d.updateDate}
-          onChange={(e) => set("updateDate", e.target.value)}
-        />
+      <Field label="劇集更新日期" error={errors["updateDate"]} htmlFor="update-date" hint="作品實際更新內容的日期，不是資料修改日期">
+        <Input id="update-date" type="date" value={d.updateDate} onChange={(e) => set("updateDate", e.target.value)} />
       </Field>
       <Field label="劇集狀態" htmlFor="series-status">
-        <NativeSelect
-          id="series-status"
-          value={d.seriesStatus}
-          onChange={(e) => set("seriesStatus", e.target.value as SeriesStatus)}
-        >
+        <NativeSelect id="series-status" value={d.seriesStatus} onChange={(e) => set("seriesStatus", e.target.value as SeriesStatus)}>
           {Object.entries(SERIES_STATUS_LABEL).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
+            <option key={key} value={key}>{label}</option>
           ))}
         </NativeSelect>
       </Field>
-      <Field label="自訂分類" hint="可複選，與題材分類、標籤分開保存">
-        <CategoryPicker
-          value={d.customCategories}
-          onChange={(ids) => set("customCategories", ids)}
-        />
-      </Field>
 
       <Field label="別名" htmlFor="aliases" hint="多個別名用頓號或逗號分隔">
-        <Input
-          id="aliases"
-          value={d.aliases}
-          onChange={(e) => set("aliases", e.target.value)}
-          placeholder="例如：長安雪、英文片名"
-        />
+        <Input id="aliases" value={d.aliases} onChange={(e) => set("aliases", e.target.value)} placeholder="例如：長安雪、英文片名" />
       </Field>
 
       <Field label="劇情簡介" htmlFor="synopsis">
-        <Textarea
-          id="synopsis"
-          value={d.synopsis}
-          onChange={(e) => set("synopsis", e.target.value)}
-          rows={4}
-        />
+        <Textarea id="synopsis" value={d.synopsis} onChange={(e) => set("synopsis", e.target.value)} rows={4} />
       </Field>
 
       <Field label="演員" htmlFor="actors" hint="多位演員用頓號或逗號分隔">
@@ -418,219 +346,104 @@ export function WorkForm({
       <Field label="分類">
         <div className="flex flex-wrap gap-2">
           {allCats.map((c) => (
-            <Chip
-              key={c}
-              active={d.categories.includes(c)}
-              onClick={() =>
-                set(
-                  "categories",
-                  d.categories.includes(c)
-                    ? d.categories.filter((x) => x !== c)
-                    : [...d.categories, c],
-                )
-              }
-            >
+            <Chip key={c} active={d.categories.includes(c)} onClick={() => set("categories", d.categories.includes(c) ? d.categories.filter((x) => x !== c) : [...d.categories, c])}>
               {c}
             </Chip>
           ))}
         </div>
-        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-          <Input
-            value={customCat}
-            onChange={(e) => setCustomCat(e.target.value)}
-            placeholder="新增題材分類"
-            aria-label="新增題材分類"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                const v = customCat.trim();
-                if (v && !d.categories.includes(v)) set("categories", [...d.categories, v]);
-                setCustomCat("");
-              }
-            }}
-          />
+        <div className="mt-3 flex gap-2">
+          <Input value={customCat} onChange={(e) => setCustomCat(e.target.value)} placeholder="新增題材分類" />
           <Button
             type="button"
             variant="secondary"
             onClick={() => {
-              const v = customCat.trim();
-              if (v && !d.categories.includes(v)) set("categories", [...d.categories, v]);
+              const value = customCat.trim();
+              if (!value) return;
+              if (!d.categories.includes(value)) set("categories", [...d.categories, value]);
               setCustomCat("");
             }}
           >
-            加入
+            <Plus />
           </Button>
         </div>
       </Field>
 
-      <Field label="標籤" htmlFor="tags" hint="用頓號或逗號分隔，例如：契約戀愛、燒腦">
+      <Field label="標籤" htmlFor="tags" hint="多個標籤用頓號或逗號分隔">
         <Input id="tags" value={d.tags} onChange={(e) => set("tags", e.target.value)} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="收藏狀態" htmlFor="collect">
-          <NativeSelect
-            id="collect"
-            value={d.collectStatus}
-            onChange={(e) => set("collectStatus", e.target.value as CollectStatus)}
-          >
-            {COLLECT_STATUS_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {COLLECT_STATUS_LABEL[s]}
-              </option>
-            ))}
+        <Field label="收藏狀態">
+          <NativeSelect value={d.collectStatus} onChange={(e) => set("collectStatus", e.target.value as CollectStatus)}>
+            {COLLECT_STATUS_ORDER.map((s) => <option key={s} value={s}>{COLLECT_STATUS_LABEL[s]}</option>)}
           </NativeSelect>
         </Field>
-        <Field label="我的追劇狀態" htmlFor="watch">
-          <NativeSelect
-            id="watch"
-            value={d.watchStatus}
-            onChange={(e) => set("watchStatus", e.target.value as WatchStatus)}
-          >
-            {WATCH_STATUS_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {WATCH_STATUS_LABEL[s]}
-              </option>
-            ))}
+        <Field label="觀看狀態">
+          <NativeSelect value={d.watchStatus} onChange={(e) => set("watchStatus", e.target.value as WatchStatus)}>
+            {WATCH_STATUS_ORDER.map((s) => <option key={s} value={s}>{WATCH_STATUS_LABEL[s]}</option>)}
           </NativeSelect>
         </Field>
       </div>
 
-      <Field label="個人評分" hint="再點一次同顆星可取消評分">
-        <RatingStars value={d.rating} onChange={(v) => set("rating", v)} />
+      <Field label="個人評分">
+        <RatingStars value={d.rating} onChange={(rating) => set("rating", rating)} />
       </Field>
 
-      <Field label="個人備註" htmlFor="note">
-        <Textarea id="note" value={d.note} onChange={(e) => set("note", e.target.value)} rows={3} />
+      <Field label="備註">
+        <Textarea value={d.note} onChange={(e) => set("note", e.target.value)} rows={4} />
       </Field>
 
-      {/* 季數 */}
-      <div className="space-y-3">
+      <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-lg font-semibold">季數與進度</h2>
-          <Button
-            type="button"
-            variant="soft"
-            size="sm"
-            onClick={() =>
-              setD((p) => ({
-                ...p,
-                seasons: [
-                  ...p.seasons,
-                  emptySeason(
-                    p.seasons.reduce((m, s) => Math.max(m, Number(s.number) || 0), 0) + 1,
-                  ),
-                ],
-              }))
-            }
-          >
-            <Plus />
-            新增一季
+          <Button type="button" variant="soft" size="sm" onClick={() => setD((p) => ({ ...p, seasons: [...p.seasons, emptySeason(p.seasons.length + 1)] }))}>
+            <Plus />新增一季
           </Button>
         </div>
-        {errors["seasons"] && <p className="text-xs text-destructive">{errors["seasons"]}</p>}
+        {errors["seasons"] && <p className="text-sm text-destructive">{errors["seasons"]}</p>}
         {d.seasons.map((s) => (
           <div key={s.id} className="surface space-y-3 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">
-                第 {s.number || "?"} 季
-                {s.originTitle && (
-                  <span className="ml-2 text-xs font-normal text-subtle-foreground">
-                    原《{s.originTitle}》
-                  </span>
-                )}
-              </p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">第 {s.number || "?"} 季</span>
               {d.seasons.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-subtle-foreground"
-                  aria-label={`移除第 ${s.number} 季`}
-                  onClick={() =>
-                    setD((p) => ({ ...p, seasons: p.seasons.filter((x) => x.id !== s.id) }))
-                  }
-                >
-                  {original(initial, s.id) ? <Trash2 /> : <X />}
+                <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setD((p) => ({ ...p, seasons: p.seasons.filter((x) => x.id !== s.id) }))}>
+                  <Trash2 />
                 </Button>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Field label="季數" error={errors[`s-${s.id}-number`]}>
-                <Input
-                  inputMode="numeric"
-                  value={s.number}
-                  onChange={(e) => setSeason(s.id, { number: e.target.value.replace(/\D/g, "") })}
-                  aria-label="季數"
-                />
+                <Input inputMode="numeric" value={s.number} onChange={(e) => setSeason(s.id, { number: e.target.value })} />
               </Field>
               <Field label="總集數" error={errors[`s-${s.id}-total`]}>
-                <Input
-                  inputMode="numeric"
-                  value={s.totalEpisodes}
-                  onChange={(e) =>
-                    setSeason(s.id, { totalEpisodes: e.target.value.replace(/\D/g, "") })
-                  }
-                  placeholder="例如 80"
-                  aria-label="總集數"
-                />
+                <Input inputMode="numeric" value={s.totalEpisodes} onChange={(e) => setSeason(s.id, { totalEpisodes: e.target.value })} />
               </Field>
-              <Field label="目前更新集數" error={errors[`s-${s.id}-current`]}>
-                <Input
-                  inputMode="numeric"
-                  value={s.currentEpisodes}
-                  onChange={(e) =>
-                    setSeason(s.id, { currentEpisodes: e.target.value.replace(/\D/g, "") })
-                  }
-                  aria-label="目前更新集數"
-                />
-              </Field>
-              <Field label="已看集數" error={errors[`s-${s.id}-watched`]}>
-                <Input
-                  inputMode="numeric"
-                  value={s.watchedEpisodes}
-                  onChange={(e) =>
-                    setSeason(s.id, { watchedEpisodes: e.target.value.replace(/\D/g, "") })
-                  }
-                  aria-label="已看集數"
-                />
+              <Field label="已更新" error={errors[`s-${s.id}-current`]}>
+                <Input inputMode="numeric" value={s.currentEpisodes} onChange={(e) => setSeason(s.id, { currentEpisodes: e.target.value })} />
               </Field>
             </div>
-            <Field label="本季觀看狀態">
-              <NativeSelect
-                value={s.status}
-                onChange={(e) => setSeason(s.id, { status: e.target.value as WatchStatus })}
-                aria-label="本季觀看狀態"
-              >
-                {WATCH_STATUS_ORDER.map((st) => (
-                  <option key={st} value={st}>
-                    {WATCH_STATUS_LABEL[st]}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="看到第幾集" error={errors[`s-${s.id}-watched`]}>
+                <Input inputMode="numeric" value={s.watchedEpisodes} onChange={(e) => setSeason(s.id, { watchedEpisodes: e.target.value })} />
+              </Field>
+              <Field label="本季狀態">
+                <NativeSelect value={s.status} onChange={(e) => setSeason(s.id, { status: e.target.value as WatchStatus })}>
+                  {WATCH_STATUS_ORDER.map((status) => <option key={status} value={status}>{WATCH_STATUS_LABEL[status]}</option>)}
+                </NativeSelect>
+              </Field>
+            </div>
             <Field label="本季備註">
-              <Input
-                value={s.note}
-                onChange={(e) => setSeason(s.id, { note: e.target.value })}
-                aria-label="本季備註"
-              />
+              <Textarea value={s.note} onChange={(e) => setSeason(s.id, { note: e.target.value })} rows={2} />
             </Field>
           </div>
         ))}
-      </div>
+      </section>
 
-      <div className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto max-w-xl px-5 pt-3">
-          <Button type="submit" size="lg" className="w-full">
-            {submitLabel}
-          </Button>
-        </div>
+      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-xl border-t border-border bg-background/95 px-5 pb-safe pt-3 backdrop-blur">
+        <Button type="submit" className="h-12 w-full" disabled={uploading}>
+          {submitLabel}
+        </Button>
       </div>
     </form>
   );
-}
-
-function original(initial: Work | undefined, id: string) {
-  return initial?.seasons.some((s) => s.id === id) ?? false;
 }
