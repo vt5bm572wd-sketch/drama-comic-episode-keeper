@@ -14,10 +14,16 @@ import {
   WATCH_STATUS_LABEL,
   WATCH_STATUS_ORDER,
   WORK_TYPE_LABEL,
+  SERIES_STATUS_LABEL,
 } from "@/lib/drama/labels";
-import type { CollectStatus, WatchStatus, Work, WorkSource, WorkType } from "@/lib/drama/types";
-import { SERIES_STATUS_LABEL } from "@/lib/drama/labels";
-import type { SeriesStatus } from "@/lib/drama/types";
+import type {
+  CollectStatus,
+  SeriesStatus,
+  WatchStatus,
+  Work,
+  WorkSource,
+  WorkType,
+} from "@/lib/drama/types";
 import { Chip } from "./Chip";
 import { Field, NativeSelect } from "./fields";
 import { RatingStars } from "./RatingStars";
@@ -27,7 +33,6 @@ interface SeasonDraft {
   id: string;
   number: string;
   totalEpisodes: string;
-  currentEpisodes: string;
   watchedEpisodes: string;
   status: WatchStatus;
   note: string;
@@ -58,7 +63,6 @@ function toDraft(work?: Work) {
         id: s.id,
         number: String(s.number),
         totalEpisodes: String(s.totalEpisodes),
-        currentEpisodes: String(s.currentEpisodes ?? s.totalEpisodes),
         watchedEpisodes: String(s.watchedEpisodes),
         status: s.status,
         note: s.note,
@@ -72,7 +76,6 @@ const emptySeason = (n: number): SeasonDraft => ({
   id: uid("s"),
   number: String(n),
   totalEpisodes: "",
-  currentEpisodes: "",
   watchedEpisodes: "0",
   status: "want",
   note: "",
@@ -134,9 +137,7 @@ export function WorkForm({
         const first = p.seasons.slice().sort((a, b) => Number(a.number) - Number(b.number))[0];
         if (first && (f || !first.totalEpisodes)) {
           n.seasons = p.seasons.map((s) =>
-            s.id === first.id
-              ? { ...s, totalEpisodes: String(total), currentEpisodes: String(total) }
-              : s,
+            s.id === first.id ? { ...s, totalEpisodes: String(total) } : s,
           );
         }
       }
@@ -151,9 +152,13 @@ export function WorkForm({
     });
   }, [prefill?.nonce]);
 
-  const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) => setD((p) => ({ ...p, [k]: v }));
+  const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) =>
+    setD((p) => ({ ...p, [k]: v }));
   const setSeason = (id: string, patch: Partial<SeasonDraft>) =>
-    setD((p) => ({ ...p, seasons: p.seasons.map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
+    setD((p) => ({
+      ...p,
+      seasons: p.seasons.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    }));
 
   const allCats = Array.from(new Set([...PRESET_CATEGORIES, ...d.categories]));
 
@@ -179,26 +184,24 @@ export function WorkForm({
 
   function validate() {
     const e: Record<string, string> = {};
-    if (!d.title.trim()) e["title"] = "請輸入劇名";
-    if (d.updateDate && !validUpdateDate(d.updateDate)) e["updateDate"] = "請輸入有效日期";
+    if (!d.title.trim()) e.title = "請輸入劇名";
+    if (d.updateDate && !validUpdateDate(d.updateDate)) e.updateDate = "請輸入有效日期";
     const nums = new Set<number>();
     d.seasons.forEach((s) => {
       const n = Number(s.number);
       const total = Number(s.totalEpisodes);
-      const current = Number(s.currentEpisodes);
       const watched = Number(s.watchedEpisodes || 0);
-      if (!Number.isInteger(current) || current < 0 || current > total)
-        e[`s-${s.id}-current`] = "更新集數需介於 0 與總集數";
       if (!Number.isInteger(n) || n < 1) e[`s-${s.id}-number`] = "季數需為 1 以上的整數";
       else if (nums.has(n)) e[`s-${s.id}-number`] = "季數重複";
       nums.add(n);
       if (s.totalEpisodes === "" || !Number.isInteger(total) || total < 1)
         e[`s-${s.id}-total`] = "請輸入總集數（1 以上）";
-      if (!Number.isInteger(watched) || watched < 0) e[`s-${s.id}-watched`] = "集數不得小於 0";
-      else if (Number.isInteger(total) && watched > current)
-        e[`s-${s.id}-watched`] = "不得超過目前更新集數";
+      if (!Number.isInteger(watched) || watched < 0)
+        e[`s-${s.id}-watched`] = "已看集數不得小於 0";
+      else if (Number.isInteger(total) && watched > total)
+        e[`s-${s.id}-watched`] = "已看集數不得超過總集數";
     });
-    if (d.seasons.length === 0) e["seasons"] = "至少需要一季";
+    if (d.seasons.length === 0) e.seasons = "至少需要一季";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -214,13 +217,12 @@ export function WorkForm({
     const seasons = d.seasons.map((s) => {
       const total = Number(s.totalEpisodes);
       const prev = original.get(s.id);
-      const current = Number(s.currentEpisodes);
-      const watched = clampEpisode(Number(s.watchedEpisodes || 0), current);
+      const watched = clampEpisode(Number(s.watchedEpisodes || 0), total);
       const changed =
         !prev ||
         prev.number !== Number(s.number) ||
         prev.totalEpisodes !== total ||
-        (prev.currentEpisodes ?? prev.totalEpisodes) !== current ||
+        (prev.currentEpisodes ?? prev.totalEpisodes) !== total ||
         prev.watchedEpisodes !== watched ||
         prev.status !== s.status ||
         prev.note !== s.note;
@@ -229,7 +231,7 @@ export function WorkForm({
           id: s.id,
           number: Number(s.number),
           totalEpisodes: total,
-          currentEpisodes: current,
+          currentEpisodes: total,
           watchedEpisodes: watched,
           status: s.status,
           note: s.note.trim(),
@@ -240,6 +242,7 @@ export function WorkForm({
         now,
       );
     });
+
     const work: Work = {
       updateDate: d.updateDate || null,
       seriesStatus: d.seriesStatus,
@@ -304,8 +307,8 @@ export function WorkForm({
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
         </div>
         <div className="min-w-0 space-y-4">
-          <Field label="劇名 *" htmlFor="title" error={errors["title"]}>
-            <Input id="title" value={d.title} onChange={(e) => set("title", e.target.value)} placeholder="例如：雪落長安" aria-invalid={!!errors["title"]} />
+          <Field label="劇名 *" htmlFor="title" error={errors.title}>
+            <Input id="title" value={d.title} onChange={(e) => set("title", e.target.value)} placeholder="例如：雪落長安" aria-invalid={!!errors.title} />
           </Field>
           <Field label="類型">
             <div className="grid grid-cols-2 gap-2">
@@ -319,9 +322,18 @@ export function WorkForm({
         </div>
       </div>
 
-      <Field label="劇集更新日期" error={errors["updateDate"]} htmlFor="update-date" hint="作品實際更新內容的日期，不是資料修改日期">
-        <Input id="update-date" type="date" value={d.updateDate} onChange={(e) => set("updateDate", e.target.value)} />
-      </Field>
+      <div className="mx-auto w-full max-w-sm text-center">
+        <Field label="劇集更新日期" error={errors.updateDate} htmlFor="update-date" hint="作品實際更新內容的日期，不是資料修改日期">
+          <Input
+            id="update-date"
+            type="date"
+            value={d.updateDate}
+            onChange={(e) => set("updateDate", e.target.value)}
+            className="text-center"
+          />
+        </Field>
+      </div>
+
       <Field label="劇集狀態" htmlFor="series-status">
         <NativeSelect id="series-status" value={d.seriesStatus} onChange={(e) => set("seriesStatus", e.target.value as SeriesStatus)}>
           {Object.entries(SERIES_STATUS_LABEL).map(([key, label]) => (
@@ -384,9 +396,9 @@ export function WorkForm({
             <Plus />新增一季
           </Button>
         </div>
-        {errors["seasons"] && <p className="text-sm text-destructive">{errors["seasons"]}</p>}
+        {errors.seasons && <p className="text-sm text-destructive">{errors.seasons}</p>}
         {d.seasons.map((s) => (
-          <div key={s.id} className="surface space-y-3 p-4">
+          <div key={s.id} className="surface space-y-4 p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">第 {s.number || "?"} 季</span>
               {d.seasons.length > 1 && (
@@ -397,27 +409,22 @@ export function WorkForm({
             </div>
             <div className="grid grid-cols-3 gap-2">
               <Field label="季數" error={errors[`s-${s.id}-number`]}>
-                <Input inputMode="numeric" value={s.number} onChange={(e) => setSeason(s.id, { number: e.target.value })} />
+                <Input inputMode="numeric" value={s.number} onChange={(e) => setSeason(s.id, { number: e.target.value.replace(/\D/g, "") })} />
               </Field>
               <Field label="總集數" error={errors[`s-${s.id}-total`]}>
-                <Input inputMode="numeric" value={s.totalEpisodes} onChange={(e) => setSeason(s.id, { totalEpisodes: e.target.value })} />
+                <Input inputMode="numeric" value={s.totalEpisodes} onChange={(e) => setSeason(s.id, { totalEpisodes: e.target.value.replace(/\D/g, "") })} />
               </Field>
-              <Field label="已更新" error={errors[`s-${s.id}-current`]}>
-                <Input inputMode="numeric" value={s.currentEpisodes} onChange={(e) => setSeason(s.id, { currentEpisodes: e.target.value })} />
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="看到第幾集" error={errors[`s-${s.id}-watched`]}>
-                <Input inputMode="numeric" value={s.watchedEpisodes} onChange={(e) => setSeason(s.id, { watchedEpisodes: e.target.value })} />
-              </Field>
-              <Field label="本季狀態">
-                <NativeSelect value={s.status} onChange={(e) => setSeason(s.id, { status: e.target.value as WatchStatus })}>
-                  {WATCH_STATUS_ORDER.map((status) => <option key={status} value={status}>{WATCH_STATUS_LABEL[status]}</option>)}
-                </NativeSelect>
+              <Field label="已看集數" error={errors[`s-${s.id}-watched`]}>
+                <Input inputMode="numeric" value={s.watchedEpisodes} onChange={(e) => setSeason(s.id, { watchedEpisodes: e.target.value.replace(/\D/g, "") })} />
               </Field>
             </div>
+            <Field label="本季觀看狀態">
+              <NativeSelect value={s.status} onChange={(e) => setSeason(s.id, { status: e.target.value as WatchStatus })}>
+                {WATCH_STATUS_ORDER.map((status) => <option key={status} value={status}>{WATCH_STATUS_LABEL[status]}</option>)}
+              </NativeSelect>
+            </Field>
             <Field label="本季備註">
-              <Textarea value={s.note} onChange={(e) => setSeason(s.id, { note: e.target.value })} rows={2} />
+              <Textarea value={s.note} onChange={(e) => setSeason(s.id, { note: e.target.value })} rows={4} />
             </Field>
           </div>
         ))}
