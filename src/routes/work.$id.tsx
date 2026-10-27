@@ -91,7 +91,6 @@ function WorkDetail({ work }: { work: Work }) {
 
   return (
     <main className="pb-nav">
-      {/* 封面主視覺 */}
       <div className="relative">
         <div className="relative h-[300px] overflow-hidden bg-elevated">
           <div className="poster-fade absolute inset-0" />
@@ -134,7 +133,6 @@ function WorkDetail({ work }: { work: Work }) {
       </div>
 
       <div className="mt-14 space-y-7 px-5">
-        {/* 評分與狀態 */}
         <div className="surface space-y-4 p-4">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[13px] text-muted-foreground">個人評分</span>
@@ -197,7 +195,6 @@ function WorkDetail({ work }: { work: Work }) {
           )}
         </div>
 
-        {/* 季數 */}
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-serif text-lg font-semibold">
@@ -315,23 +312,6 @@ function WorkDetail({ work }: { work: Work }) {
             <p className="whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
               {work.synopsis}
             </p>
-          </InfoBlock>
-        )}
-
-        {work.actors.length > 0 && (
-          <InfoBlock title="演員">
-            <div className="flex flex-wrap gap-2">
-              {work.actors.map((a) => (
-                <Link
-                  key={a}
-                  to="/search"
-                  search={{ q: a }}
-                  className="rounded-full bg-card px-3 py-1.5 text-sm text-muted-foreground"
-                >
-                  {a}
-                </Link>
-              ))}
-            </div>
           </InfoBlock>
         )}
 
