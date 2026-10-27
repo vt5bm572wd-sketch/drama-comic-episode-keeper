@@ -5,7 +5,7 @@ export function CategoryPicker({
   value: string[];
   onChange: (ids: string[]) => void;
 }) {
-  return <span className="nina-custom-category-marker hidden" aria-hidden />;
+  return null;
 }
 
 export function CategoryManager() {
