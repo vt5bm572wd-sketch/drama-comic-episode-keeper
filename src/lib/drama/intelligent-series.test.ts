@@ -131,6 +131,27 @@ describe("方案 A 智能加入", () => {
     expect(store.getSnapshot()).toHaveLength(1);
   });
 
+  it("重新匯入時會把舊版誤存的獨立續季合回系列", () => {
+    const first = work("first", "顏心未改", 1, "7000000000000000001", 10, 10);
+    const separated = work("separated", "顏心未改2", 1, "7000000000000000002", 3, 10);
+    separated.seasons[0]!.title = "顏心未改2";
+    const repairStore = createDramaStore(new MemoryRepository([first, separated]));
+    const incoming = work("incoming", "顏心未改", 2, "7000000000000000002", 0, 10);
+    incoming.seasons[0]!.title = "顏心未改2";
+
+    const result = repairStore.addSmart(incoming);
+
+    expect(result.kind).toBe("merged");
+    expect(repairStore.getSnapshot()).toHaveLength(1);
+    const repaired = repairStore.get("first")!;
+    expect(repaired.seasons).toHaveLength(2);
+    expect(repaired.seasons.find((season) => season.number === 1)?.watchedEpisodes).toBe(10);
+    expect(repaired.seasons.find((season) => season.number === 2)?.watchedEpisodes).toBe(3);
+    expect(repaired.seasons.find((season) => season.number === 2)?.source?.seriesId).toBe(
+      "7000000000000000002",
+    );
+  });
+
   it("同名但沒有明確季數標記時不會自動合併", () => {
     const result = store.addSmart(work("other", "顏心未改", 1, "7000000000000000099"));
     expect(result.kind).toBe("added");

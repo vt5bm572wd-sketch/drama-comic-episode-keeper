@@ -145,7 +145,22 @@ export function createDramaStore(repo: DramaRepository) {
             ),
           )
         : undefined;
-      if (duplicate) return { kind: "duplicate", work: duplicate };
+      if (duplicate) {
+        // 舊版可能已把《劇名2》存成獨立卡片。當新識別器已能確認它是現有
+        // 系列的新季時，重新匯入同一紅果 ID 會原地合併舊卡片，保留其進度與備註。
+        const repairMatch = findSeriesMatch(
+          list.filter((candidate) => candidate.id !== duplicate.id),
+          work,
+        );
+        if (repairMatch.kind === "confirmed") {
+          const merged = mergeIntoSeries(repairMatch.target, duplicate, now());
+          const repaired = list
+            .filter((candidate) => candidate.id !== duplicate.id)
+            .map((candidate) => (candidate.id === repairMatch.target.id ? merged : candidate));
+          if (commit(repaired)) return { kind: "merged", work: merged };
+        }
+        return { kind: "duplicate", work: duplicate };
+      }
       const match = findSeriesMatch(list, work);
       if (match.kind === "possible")
         return { kind: "possible", incoming: work, target: match.target };
