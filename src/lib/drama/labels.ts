@@ -9,7 +9,8 @@ export const WATCH_STATUS_LABEL: Record<WatchStatus, string> = {
   unwatched: "未觀看",
   pending: "待觀看",
   waiting: "等更新",
-  want: "想看",
+  // Legacy compatibility only. Runtime data is normalized to `unwatched`.
+  want: "未觀看",
   watching: "追劇中",
   completed: "已看完",
   paused: "暫停看",
@@ -17,13 +18,12 @@ export const WATCH_STATUS_LABEL: Record<WatchStatus, string> = {
 };
 
 export const WATCH_STATUS_ORDER: WatchStatus[] = [
-  "watching",
-  "pending",
   "unwatched",
+  "pending",
+  "watching",
   "waiting",
-  "want",
-  "paused",
   "completed",
+  "paused",
   "dropped",
 ];
 
