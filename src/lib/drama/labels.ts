@@ -7,23 +7,22 @@ export const WORK_TYPE_LABEL: Record<WorkType, string> = {
 
 export const WATCH_STATUS_LABEL: Record<WatchStatus, string> = {
   unwatched: "未觀看",
-  pending: "待觀看",
+  // Legacy aliases are kept for old backups/data, but are no longer selectable.
+  pending: "未觀看",
   waiting: "等更新",
-  // Legacy compatibility only. Runtime data is normalized to `unwatched`.
   want: "未觀看",
   watching: "追劇中",
   completed: "已看完",
-  paused: "暫停看",
+  paused: "追劇中",
   dropped: "棄劇",
 };
 
+/** 使用者可選的觀看狀態：待觀看與暫停看已依 V2 規則移除。 */
 export const WATCH_STATUS_ORDER: WatchStatus[] = [
   "unwatched",
-  "pending",
   "watching",
   "waiting",
   "completed",
-  "paused",
   "dropped",
 ];
 
@@ -50,6 +49,7 @@ export const PRESET_CATEGORIES = [
   "喜劇",
 ];
 
+/** 作品本身的更新狀態，與使用者的觀看狀態完全分離。 */
 export const SERIES_STATUS_LABEL = {
   ongoing: "連載中",
   completed: "已完結",
