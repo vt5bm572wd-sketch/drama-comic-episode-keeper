@@ -95,10 +95,10 @@ const DEMO: DemoInput[] = [
     categories: ["懸疑"],
     tags: ["燒腦"],
     collectStatus: "collected",
-    watchStatus: "want",
+    watchStatus: "unwatched",
     rating: 0,
     note: "",
-    seasons: [{ number: 1, totalEpisodes: 50, watchedEpisodes: 0, status: "want" }],
+    seasons: [{ number: 1, totalEpisodes: 50, watchedEpisodes: 0, status: "unwatched" }],
     currentSeason: 1,
     createdDaysAgo: 2,
     watchedHoursAgo: null,
@@ -186,4 +186,3 @@ export function buildDemoWorks(nowMs = Date.now()): Work[] {
     };
   });
 }
-
