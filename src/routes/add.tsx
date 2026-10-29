@@ -75,7 +75,7 @@ function AddPage() {
   function applyDetails({ work }: OnlineDetails, force: boolean) {
     // 線上封面直接保存官方圖片網址，不轉成 Base64
     const cover = work.coverUrl;
-    const identity = parseSeriesIdentity(work.title);
+    const identity = parseSeriesIdentity(work.originalTitle ?? work.title);
     setPrefill((p) => ({
       nonce: (p?.nonce ?? 0) + 1,
       force,
@@ -166,10 +166,10 @@ function AddPage() {
         source={source}
         prefill={prefill}
         onSubmit={(work) => {
-          if (work.source) {
+          {
             const result = dramaStore.addSmart(work);
             if (result.kind === "duplicate") {
-              toast.error(`《${result.work.title}》已存在同一個紅果作品 ID，未重複新增。`);
+              toast.info(`《${result.work.title}》已有相同來源的收藏，保留原有資料。`);
               navigate({ to: "/work/$id", params: { id: result.work.id }, replace: true });
               return;
             }
@@ -184,10 +184,6 @@ function AddPage() {
             );
             navigate({ to: "/work/$id", params: { id: result.work.id }, replace: true });
             return;
-          }
-          if (dramaStore.add(work)) {
-            toast.success(`已新增《${work.title}》`);
-            navigate({ to: "/work/$id", params: { id: work.id }, replace: true });
           }
         }}
       />
