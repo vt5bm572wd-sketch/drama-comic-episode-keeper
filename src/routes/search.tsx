@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Search, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
 import { OnlineSearchResults } from "@/components/drama/OnlineSearchResults";
@@ -39,30 +39,25 @@ function SearchPage() {
   const { q = "" } = Route.useSearch();
   const navigate = Route.useNavigate();
   const works = useWorks();
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   const setQ = (value: string) =>
     navigate({ to: ".", search: (prev) => ({ ...prev, q: value || undefined }), replace: true });
   const results = works ? searchWorks(works, q) : [];
 
   return (
-    <main className="pb-nav">
-      <PageHeader title="搜尋" subtitle="搜尋收藏，或查詢紅果短劇線上作品" />
+    <main className="min-h-[100dvh] pb-nav">
+      <PageHeader title="搜尋" subtitle="搜尋收藏與紅果短劇" />
       <div className="px-5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-subtle-foreground" />
           <input
-            ref={inputRef}
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="輸入一次，同時搜尋收藏與紅果線上作品"
+            placeholder="搜尋劇名"
             aria-label="搜尋作品"
             enterKeyHint="search"
+            autoComplete="off"
             className="h-12 w-full rounded-2xl border border-border bg-card pl-11 pr-11 text-base text-foreground shadow-card placeholder:text-subtle-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-search-cancel-button]:hidden"
           />
           {q && (
@@ -83,13 +78,9 @@ function SearchPage() {
         {works === null ? (
           <LoadingBlock />
         ) : !q.trim() ? (
-          <EmptyState
-            icon={Search}
-            title="輸入關鍵字開始搜尋"
-            description={`會先顯示你的 ${works.length} 部收藏，再顯示紅果線上結果。`}
-          />
+          <EmptyState icon={Search} title="輸入劇名開始搜尋" />
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-8 pb-safe">
             <section aria-labelledby="local-results-heading">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 id="local-results-heading" className="font-serif text-lg font-semibold">
