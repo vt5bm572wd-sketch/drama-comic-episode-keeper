@@ -184,7 +184,7 @@ export function mergeIntoSeries(target: Work, source: Work, now = new Date().toI
     ...target,
     aliases,
     seasons: [...target.seasons, ...moved],
-    currentSeasonId: moved.find((s) => s.watchedEpisodes === 0)?.id ?? target.currentSeasonId,
+    currentSeasonId: target.currentSeasonId ?? moved[0]?.id ?? null,
     actors: Array.from(new Set([...target.actors, ...source.actors])),
     categories: Array.from(new Set([...target.categories, ...source.categories])),
     tags: Array.from(new Set([...target.tags, ...source.tags])),
