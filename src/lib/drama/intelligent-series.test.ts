@@ -9,6 +9,7 @@ import {
   toSimplifiedChinese,
   toTaiwanTraditional,
   traditionalizeHongguoWork,
+  traditionalizeOnlineWork,
 } from "./traditional-chinese";
 import type { Work, WorkSource } from "./types";
 
@@ -146,6 +147,26 @@ describe("台灣繁體與備份相容", () => {
     expect(converted.originalTitle).toBe("重生！丑小鸭逆袭成了万人迷");
     expect(converted.note).toBe("我的備註不要改");
     expect(converted.seasons[0]?.source?.seriesId).toBe("7000000000000000077");
+  });
+
+  it("線上結果的演員與熱度也轉為台灣繁體並保留原文", () => {
+    const converted = traditionalizeOnlineWork({
+      seriesId: "7687502285504531480",
+      title: "丑小鸭",
+      coverUrl: null,
+      synopsis: "逆袭故事",
+      actors: ["王小亿"],
+      tags: ["都市"],
+      totalEpisodes: 12,
+      heat: "4390万热度",
+      rating: null,
+      sourceUrl: hongguoDetailUrl("7687502285504531480"),
+    });
+
+    expect(converted.actors).toEqual(["王小億"]);
+    expect(converted.heat).toBe("4390萬熱度");
+    expect(converted.originalActors).toEqual(["王小亿"]);
+    expect(converted.originalHeat).toBe("4390万热度");
   });
 
   it("V2 備份保留每季來源，舊版結構仍可匯入", () => {

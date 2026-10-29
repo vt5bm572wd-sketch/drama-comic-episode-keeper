@@ -28,11 +28,13 @@ export interface OnlineWork {
   synopsis: string;
   originalSynopsis?: string;
   actors: string[];
+  originalActors?: string[];
   tags: string[];
   originalTags?: string[];
   totalEpisodes: number | null;
   /** 例如「3726萬熱度」 */
   heat: string | null;
+  originalHeat?: string | null;
   /** 官方站內評分（10 分制） */
   rating: number | null;
   sourceUrl: string;

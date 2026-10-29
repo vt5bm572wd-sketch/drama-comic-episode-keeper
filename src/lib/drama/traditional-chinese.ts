@@ -16,15 +16,21 @@ export function toSimplifiedChinese(value: string): string {
 export function traditionalizeOnlineWork(work: OnlineWork): OnlineWork {
   const originalTitle = work.originalTitle ?? work.title;
   const originalSynopsis = work.originalSynopsis ?? work.synopsis;
+  const originalActors = work.originalActors ?? work.actors;
   const originalTags = work.originalTags ?? work.tags;
+  const originalHeat = work.originalHeat ?? work.heat;
   return {
     ...work,
     originalTitle,
     originalSynopsis,
+    originalActors,
     originalTags,
+    originalHeat,
     title: toTaiwanTraditional(originalTitle),
     synopsis: toTaiwanTraditional(originalSynopsis),
+    actors: originalActors.map(toTaiwanTraditional),
     tags: originalTags.map(toTaiwanTraditional),
+    heat: originalHeat ? toTaiwanTraditional(originalHeat) : originalHeat,
   };
 }
 
