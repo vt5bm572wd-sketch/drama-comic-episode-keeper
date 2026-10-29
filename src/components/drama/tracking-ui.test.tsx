@@ -62,6 +62,13 @@ describe("新增與編輯的共用表單", () => {
     expect(screen.getByLabelText("劇集狀態").querySelectorAll("option")).toHaveLength(4);
     expect(screen.getByLabelText("我的追劇狀態").querySelectorAll("option")).toHaveLength(8);
   });
+  it("簡易模式保留必要欄位並隱藏進階設定", () => {
+    render(<WorkForm mode="simple" submitLabel="新增" onSubmit={() => {}} />);
+    expect(screen.getByLabelText("劇名 *")).toBeInTheDocument();
+    expect(screen.getByLabelText("目前更新集數")).toBeInTheDocument();
+    expect(screen.queryByLabelText("劇集狀態")).not.toBeInTheDocument();
+    expect(screen.queryByText("個人評分")).not.toBeInTheDocument();
+  });
   it("列表顯示作品日期與衍生提示", () => {
     render(<SeriesInfo work={w} />);
     expect(screen.getByText("連載中｜更新至 35 集｜2026/10/27 更新")).toBeInTheDocument();

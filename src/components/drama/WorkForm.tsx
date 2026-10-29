@@ -127,12 +127,14 @@ export function WorkForm({
   onSubmit,
   source,
   prefill,
+  mode = "advanced",
 }: {
   initial?: Work;
   submitLabel: string;
   onSubmit: (work: Work) => void;
   source?: WorkSource | null | undefined;
   prefill?: WorkPrefill | null | undefined;
+  mode?: "simple" | "advanced";
 }) {
   const categoryOptions = useCategoryOptions();
   const [d, setD] = useState(() => {
@@ -407,45 +409,51 @@ export function WorkForm({
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-sm text-center">
-        <Field
-          label="劇集更新日期"
-          error={errors["updateDate"]}
-          htmlFor="update-date"
-          hint="作品實際更新內容的日期，不是資料修改日期"
-        >
+      {mode === "advanced" && (
+        <div className="mx-auto w-full max-w-sm text-center">
+          <Field
+            label="劇集更新日期"
+            error={errors["updateDate"]}
+            htmlFor="update-date"
+            hint="作品實際更新內容的日期，不是資料修改日期"
+          >
+            <Input
+              id="update-date"
+              type="date"
+              value={d.updateDate}
+              onChange={(e) => set("updateDate", e.target.value)}
+              className="text-center"
+            />
+          </Field>
+        </div>
+      )}
+
+      {mode === "advanced" && (
+        <Field label="劇集狀態" htmlFor="series-status">
+          <NativeSelect
+            id="series-status"
+            value={d.seriesStatus}
+            onChange={(e) => set("seriesStatus", e.target.value as SeriesStatus)}
+          >
+            {Object.entries(SERIES_STATUS_LABEL).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+      )}
+
+      {mode === "advanced" && (
+        <Field label="別名" htmlFor="aliases" hint="多個別名用頓號或逗號分隔">
           <Input
-            id="update-date"
-            type="date"
-            value={d.updateDate}
-            onChange={(e) => set("updateDate", e.target.value)}
-            className="text-center"
+            id="aliases"
+            value={d.aliases}
+            onChange={(e) => set("aliases", e.target.value)}
+            placeholder="例如：長安雪、英文片名"
           />
         </Field>
-      </div>
-
-      <Field label="劇集狀態" htmlFor="series-status">
-        <NativeSelect
-          id="series-status"
-          value={d.seriesStatus}
-          onChange={(e) => set("seriesStatus", e.target.value as SeriesStatus)}
-        >
-          {Object.entries(SERIES_STATUS_LABEL).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
-
-      <Field label="別名" htmlFor="aliases" hint="多個別名用頓號或逗號分隔">
-        <Input
-          id="aliases"
-          value={d.aliases}
-          onChange={(e) => set("aliases", e.target.value)}
-          placeholder="例如：長安雪、英文片名"
-        />
-      </Field>
+      )}
 
       <Field label="劇情簡介" htmlFor="synopsis">
         <Textarea
@@ -456,87 +464,101 @@ export function WorkForm({
         />
       </Field>
 
-      <Field label="分類">
-        <div className="flex flex-wrap gap-2">
-          {categoryOptions.map((c) => (
-            <Chip
-              key={c}
-              active={d.categories.includes(c)}
-              onClick={() =>
-                set(
-                  "categories",
-                  d.categories.includes(c)
-                    ? d.categories.filter((x) => x !== c)
-                    : [...d.categories, c],
-                )
-              }
+      {mode === "advanced" && (
+        <Field label="分類">
+          <div className="flex flex-wrap gap-2">
+            {categoryOptions.map((c) => (
+              <Chip
+                key={c}
+                active={d.categories.includes(c)}
+                onClick={() =>
+                  set(
+                    "categories",
+                    d.categories.includes(c)
+                      ? d.categories.filter((x) => x !== c)
+                      : [...d.categories, c],
+                  )
+                }
+              >
+                {c}
+              </Chip>
+            ))}
+          </div>
+          {categoryOptions.length === 0 && (
+            <p className="text-xs text-subtle-foreground">
+              請先到首頁「常用分類 → 設定」新增分類。
+            </p>
+          )}
+        </Field>
+      )}
+
+      {mode === "advanced" && (
+        <Field label="標籤" htmlFor="tags" hint="多個標籤用頓號或逗號分隔">
+          <Input id="tags" value={d.tags} onChange={(e) => set("tags", e.target.value)} />
+        </Field>
+      )}
+
+      {mode === "advanced" && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="收藏狀態">
+            <NativeSelect
+              value={d.collectStatus}
+              onChange={(e) => set("collectStatus", e.target.value as CollectStatus)}
             >
-              {c}
-            </Chip>
-          ))}
+              {COLLECT_STATUS_ORDER.map((s) => (
+                <option key={s} value={s}>
+                  {COLLECT_STATUS_LABEL[s]}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field label="觀看狀態">
+            <NativeSelect
+              value={d.watchStatus}
+              aria-label="我的追劇狀態"
+              onChange={(e) => {
+                set("watchStatus", e.target.value as WatchStatus);
+                set("watchStatusMode", "manual");
+              }}
+            >
+              {WATCH_STATUS_ORDER.map((s) => (
+                <option key={s} value={s}>
+                  {WATCH_STATUS_LABEL[s]}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
         </div>
-        {categoryOptions.length === 0 && (
-          <p className="text-xs text-subtle-foreground">請先到首頁「常用分類 → 設定」新增分類。</p>
-        )}
-      </Field>
+      )}
 
-      <Field label="標籤" htmlFor="tags" hint="多個標籤用頓號或逗號分隔">
-        <Input id="tags" value={d.tags} onChange={(e) => set("tags", e.target.value)} />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="收藏狀態">
-          <NativeSelect
-            value={d.collectStatus}
-            onChange={(e) => set("collectStatus", e.target.value as CollectStatus)}
-          >
-            {COLLECT_STATUS_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {COLLECT_STATUS_LABEL[s]}
-              </option>
-            ))}
-          </NativeSelect>
+      {mode === "advanced" && (
+        <Field label="個人評分">
+          <RatingStars value={d.rating} onChange={(rating) => set("rating", rating)} />
         </Field>
-        <Field label="觀看狀態">
-          <NativeSelect
-            value={d.watchStatus}
-            aria-label="我的追劇狀態"
-            onChange={(e) => {
-              set("watchStatus", e.target.value as WatchStatus);
-              set("watchStatusMode", "manual");
-            }}
-          >
-            {WATCH_STATUS_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {WATCH_STATUS_LABEL[s]}
-              </option>
-            ))}
-          </NativeSelect>
+      )}
+
+      {mode === "advanced" && (
+        <Field label="備註">
+          <Textarea value={d.note} onChange={(e) => set("note", e.target.value)} rows={4} />
         </Field>
-      </div>
-
-      <Field label="個人評分">
-        <RatingStars value={d.rating} onChange={(rating) => set("rating", rating)} />
-      </Field>
-
-      <Field label="備註">
-        <Textarea value={d.note} onChange={(e) => set("note", e.target.value)} rows={4} />
-      </Field>
+      )}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-lg font-semibold">季數與進度</h2>
-          <Button
-            type="button"
-            variant="soft"
-            size="sm"
-            onClick={() =>
-              setD((p) => ({ ...p, seasons: [...p.seasons, emptySeason(p.seasons.length + 1)] }))
-            }
-          >
-            <Plus />
-            新增一季
-          </Button>
+          {mode === "advanced" && (
+            <Button
+              type="button"
+              variant="soft"
+              size="sm"
+              onClick={() =>
+                setD((p) => ({ ...p, seasons: [...p.seasons, emptySeason(p.seasons.length + 1)] }))
+              }
+            >
+              <Plus />
+              新增一季
+            </Button>
+          )}
         </div>
         {errors["seasons"] && <p className="text-sm text-destructive">{errors["seasons"]}</p>}
         {d.seasons.map((s) => (
@@ -585,27 +607,31 @@ export function WorkForm({
                 />
               </Field>
             </div>
-            <Field label="本季觀看狀態">
-              <NativeSelect
-                value={s.status}
-                onChange={(e) =>
-                  setSeason(s.id, { status: e.target.value as WatchStatus, statusMode: "manual" })
-                }
-              >
-                {WATCH_STATUS_ORDER.map((status) => (
-                  <option key={status} value={status}>
-                    {WATCH_STATUS_LABEL[status]}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="本季備註">
-              <Textarea
-                value={s.note}
-                onChange={(e) => setSeason(s.id, { note: e.target.value })}
-                rows={4}
-              />
-            </Field>
+            {mode === "advanced" && (
+              <Field label="本季觀看狀態">
+                <NativeSelect
+                  value={s.status}
+                  onChange={(e) =>
+                    setSeason(s.id, { status: e.target.value as WatchStatus, statusMode: "manual" })
+                  }
+                >
+                  {WATCH_STATUS_ORDER.map((status) => (
+                    <option key={status} value={status}>
+                      {WATCH_STATUS_LABEL[status]}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+            )}
+            {mode === "advanced" && (
+              <Field label="本季備註">
+                <Textarea
+                  value={s.note}
+                  onChange={(e) => setSeason(s.id, { note: e.target.value })}
+                  rows={4}
+                />
+              </Field>
+            )}
           </div>
         ))}
       </section>
