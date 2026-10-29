@@ -1,9 +1,11 @@
 import { recalculateWorkStatus } from "./domain";
 import { guessWorkType, tagsToCategories, type OnlineWork } from "./hongguo-data";
+import { traditionalizeOnlineWork } from "./traditional-chinese";
 import type { Season, Work } from "./types";
 
 /** 建立紅果更新草稿；個人欄位一律沿用收藏中的值。 */
-export function buildSourceUpdate(work: Work, online: OnlineWork, stamp: string): Work {
+export function buildSourceUpdate(work: Work, input: OnlineWork, stamp: string): Work {
+  const online = traditionalizeOnlineWork(input);
   const seasons = work.seasons.map((season) => {
     const matches =
       season.source?.seriesId === online.seriesId ||
