@@ -165,18 +165,25 @@ export function LinkImportPanel({
 
       <div aria-live="polite">
         {outcome.kind === "error" && (
-          <div role="alert" className="flex gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          <div
+            role="alert"
+            className="flex gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <p>{outcome.message}</p>
           </div>
         )}
 
         {outcome.kind === "duplicate" && (
-          <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm">
+          <div
+            role="alert"
+            className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm"
+          >
             <div className="flex gap-2 text-destructive">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <p>
-                這部作品已在收藏中：《{outcome.work.title}》（ID {outcome.seriesId}）。為避免重複，不會再新增一筆。
+                這部作品已在收藏中：《{outcome.work.title}》（ID {outcome.seriesId}
+                ）。為避免重複，不會再新增一筆。
               </p>
             </div>
             <Button asChild variant="secondary" size="sm">
@@ -195,7 +202,9 @@ export function LinkImportPanel({
             </div>
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
               <dt className="text-subtle-foreground">作品 ID</dt>
-              <dd className="font-mono break-all" data-testid="linked-series-id">{outcome.result.seriesId}</dd>
+              <dd className="font-mono break-all" data-testid="linked-series-id">
+                {outcome.result.seriesId}
+              </dd>
               <dt className="text-subtle-foreground">來源網址</dt>
               <dd className="break-all">{outcome.result.sourceUrl}</dd>
             </dl>
@@ -208,7 +217,10 @@ export function LinkImportPanel({
             )}
 
             {fetchState.kind === "ok" && (
-              <div className="flex gap-3 rounded-lg bg-background/60 p-2.5" data-testid="online-details">
+              <div
+                className="flex gap-3 rounded-lg bg-background/60 p-2.5"
+                data-testid="online-details"
+              >
                 {fetchState.details.work.coverUrl && (
                   <img
                     src={fetchState.details.work.coverUrl}
@@ -218,27 +230,38 @@ export function LinkImportPanel({
                   />
                 )}
                 <div className="min-w-0 space-y-1 text-xs text-muted-foreground">
-                  <p className="font-serif text-sm font-semibold text-foreground">《{fetchState.details.work.title}》</p>
+                  <p className="font-serif text-sm font-semibold text-foreground">
+                    《{fetchState.details.work.title}》
+                  </p>
                   <p>
-                    {fetchState.details.work.totalEpisodes ? `全 ${fetchState.details.work.totalEpisodes} 集` : "集數未提供"}
+                    {fetchState.details.work.totalEpisodes
+                      ? `全 ${fetchState.details.work.totalEpisodes} 集`
+                      : "集數未提供"}
                     {fetchState.details.work.heat ? ` · ${fetchState.details.work.heat}` : ""}
                   </p>
-                  <p>已取得作品資料，並自動填入下方空白欄位（封面、劇名、簡介、演員、標籤、總集數）。請確認後保存。</p>
+                  <p>
+                    已取得作品資料並轉為台灣繁體，自動填入封面、劇名、簡介、標籤與總集數；原始簡體資料仍會保留。
+                  </p>
                   {fetchState.details.work.actors.length === 0 && (
-                    <p className="text-subtle-foreground">官方未列出演員，類型先設為漫劇，可自行更改。</p>
+                    <p className="text-subtle-foreground">
+                      官方未列出演員，類型先設為漫劇，可自行更改。
+                    </p>
                   )}
                 </div>
               </div>
             )}
 
             {fetchState.kind === "error" && (
-              <div role="alert" className="space-y-2 rounded-lg border border-destructive/30 bg-background/60 p-2.5 text-xs">
+              <div
+                role="alert"
+                className="space-y-2 rounded-lg border border-destructive/30 bg-background/60 p-2.5 text-xs"
+              >
                 <p className="flex gap-1.5 text-destructive">
                   <AlertCircle className="mt-px size-3.5 shrink-0" />
                   {fetchState.message}
                 </p>
                 <p className="text-muted-foreground">
-                  仍可在下方手動填寫封面、簡介、演員與集數，保存時會一併記錄來源。
+                  仍可在下方手動填寫封面、簡介與集數，保存時會一併記錄來源。
                   {outcome.result.title && `分享文字中的劇名《${outcome.result.title}》已帶入。`}
                 </p>
               </div>
@@ -246,22 +269,43 @@ export function LinkImportPanel({
 
             <div className="flex flex-wrap gap-2">
               {fetchState.kind === "ok" && (
-                <Button type="button" size="sm" variant="secondary" onClick={() => onDetails(fetchState.details, true)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onDetails(fetchState.details, true)}
+                >
                   用線上資料覆蓋表單
                 </Button>
               )}
               {fetchState.kind === "error" && (
-                <Button type="button" size="sm" variant="secondary" onClick={() => void fetchDetails(outcome.result.seriesId)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void fetchDetails(outcome.result.seriesId)}
+                >
                   <RefreshCw />
                   重試
                 </Button>
               )}
               {fetchState.kind === "error" && outcome.result.title && (
-                <Button type="button" size="sm" variant="secondary" onClick={() => onApplyTitle(outcome.result.title ?? "")}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onApplyTitle(outcome.result.title ?? "")}
+                >
                   用此劇名覆蓋表單
                 </Button>
               )}
-              <Button type="button" size="sm" variant="ghost" className="text-subtle-foreground" onClick={unlink}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-subtle-foreground"
+                onClick={unlink}
+              >
                 <Link2Off />
                 取消連結
               </Button>
@@ -272,4 +316,3 @@ export function LinkImportPanel({
     </div>
   );
 }
-

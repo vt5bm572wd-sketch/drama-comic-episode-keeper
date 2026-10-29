@@ -2,7 +2,16 @@ import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { runCoverMaintenance, type CoverChange } from "./cover-store";
 import { buildDemoWorks } from "./demo";
-import { migrateWork, mergeIntoSeries, setSeasonProgress, stepEpisode, uid } from "./domain";
+import {
+  deriveSeasonStatus,
+  migrateWork,
+  mergeIntoSeries,
+  recalculateWorkStatus,
+  setSeasonProgress,
+  stepEpisode,
+  uid,
+} from "./domain";
+import { findSeriesMatch } from "./series-identity";
 import { LocalStorageRepository, type DramaRepository } from "./repository";
 import type { CustomCategory, Season, Work } from "./types";
 
@@ -119,8 +128,55 @@ export function createDramaStore(repo: DramaRepository) {
       return commit([migrateWork(work), ...ensureLoaded()]);
     },
 
+    /** 紅果加入：來源 ID 去重、明確季名自動合併、相似名稱僅回傳候選。 */
+    addSmart(
+      work: Work,
+    ):
+      | { kind: "added"; work: Work }
+      | { kind: "merged"; work: Work }
+      | { kind: "duplicate"; work: Work }
+      | { kind: "possible"; incoming: Work; target: Work } {
+      const list = ensureLoaded();
+      const sourceId = work.seasons[0]?.source?.seriesId ?? work.source?.seriesId;
+      const duplicate = sourceId
+        ? list.find((w) =>
+            [w.source, ...w.seasons.map((s) => s.source)].some(
+              (source) => source?.seriesId === sourceId,
+            ),
+          )
+        : undefined;
+      if (duplicate) return { kind: "duplicate", work: duplicate };
+      const match = findSeriesMatch(list, work);
+      if (match.kind === "possible")
+        return { kind: "possible", incoming: work, target: match.target };
+      if (match.kind === "confirmed") {
+        const merged = mergeIntoSeries(match.target, work, now());
+        if (!commit(list.map((w) => (w.id === match.target.id ? merged : w)))) {
+          return { kind: "possible", incoming: work, target: match.target };
+        }
+        return { kind: "merged", work: merged };
+      }
+      const migrated = migrateWork(work);
+      if (!commit([migrated, ...list])) return { kind: "possible", incoming: work, target: work };
+      return { kind: "added", work: migrated };
+    },
+
+    confirmSmartMerge(targetId: string, incoming: Work) {
+      const list = ensureLoaded();
+      const target = list.find((w) => w.id === targetId);
+      if (!target) return null;
+      const merged = mergeIntoSeries(target, incoming, now());
+      return commit(list.map((w) => (w.id === targetId ? merged : w))) ? merged : null;
+    },
+
     update(id: string, patch: Partial<Work>) {
-      return updateOne(id, (w) => ({ ...w, ...patch, id: w.id, updatedAt: now() }));
+      return updateOne(id, (w) => ({
+        ...w,
+        ...patch,
+        ...(patch.watchStatus ? { watchStatusMode: "manual" as const } : {}),
+        id: w.id,
+        updatedAt: now(),
+      }));
     },
 
     remove(id: string) {
@@ -142,10 +198,21 @@ export function createDramaStore(repo: DramaRepository) {
     upsertSeason(id: string, season: Season) {
       return updateOne(id, (w) => {
         const exists = w.seasons.some((s) => s.id === season.id);
+        const normalized = {
+          ...season,
+          statusMode: season.statusMode ?? "auto",
+          status: deriveSeasonStatus(season, !exists && season.watchedEpisodes === 0),
+        };
         const seasons = exists
-          ? w.seasons.map((s) => (s.id === season.id ? season : s))
-          : [...w.seasons, season];
-        return { ...w, seasons, currentSeasonId: w.currentSeasonId ?? season.id, updatedAt: now() };
+          ? w.seasons.map((s) => (s.id === season.id ? normalized : s))
+          : [...w.seasons, normalized];
+        return recalculateWorkStatus({
+          ...w,
+          seasons,
+          currentSeasonId: w.currentSeasonId ?? season.id,
+          updatedAt: now(),
+          ...(!exists ? { watchStatus: "pending" as const, watchStatusMode: "auto" as const } : {}),
+        });
       });
     },
 
@@ -153,14 +220,67 @@ export function createDramaStore(repo: DramaRepository) {
       return updateOne(id, (w) => {
         if (w.seasons.length <= 1) return w;
         const seasons = w.seasons.filter((s) => s.id !== seasonId);
-        return {
+        return recalculateWorkStatus({
           ...w,
           seasons,
           currentSeasonId:
             w.currentSeasonId === seasonId ? (seasons[0]?.id ?? null) : w.currentSeasonId,
           updatedAt: now(),
-        };
+        });
       });
+    },
+
+    reorderSeason(id: string, seasonId: string, direction: -1 | 1) {
+      return updateOne(id, (w) => {
+        const ordered = [...w.seasons].sort((a, b) => a.number - b.number);
+        const index = ordered.findIndex((s) => s.id === seasonId);
+        const other = ordered[index + direction];
+        const current = ordered[index];
+        if (!current || !other) return w;
+        const seasons = w.seasons.map((s) =>
+          s.id === current.id
+            ? { ...s, number: other.number, updatedAt: now() }
+            : s.id === other.id
+              ? { ...s, number: current.number, updatedAt: now() }
+              : s,
+        );
+        return { ...w, seasons, updatedAt: now() };
+      });
+    },
+
+    splitSeason(id: string, seasonId: string): Work | null {
+      const list = ensureLoaded();
+      const work = list.find((w) => w.id === id);
+      const season = work?.seasons.find((s) => s.id === seasonId);
+      if (!work || !season || work.seasons.length <= 1) return null;
+      const stamp = now();
+      const splitSeason = { ...season, number: 1, updatedAt: stamp };
+      const created: Work = {
+        ...work,
+        id: uid("w"),
+        title: season.title ?? season.originTitle ?? work.title,
+        originalTitle: season.originalTitle,
+        synopsis: season.synopsis ?? work.synopsis,
+        originalSynopsis: season.originalSynopsis,
+        cover: season.cover ?? work.cover,
+        source: season.source,
+        rating: season.rating ?? work.rating,
+        note: "",
+        seasons: [splitSeason],
+        currentSeasonId: splitSeason.id,
+        createdAt: stamp,
+        updatedAt: stamp,
+      };
+      const remaining = recalculateWorkStatus({
+        ...work,
+        seasons: work.seasons.filter((s) => s.id !== seasonId),
+        currentSeasonId:
+          work.currentSeasonId === seasonId
+            ? (work.seasons.find((s) => s.id !== seasonId)?.id ?? null)
+            : work.currentSeasonId,
+        updatedAt: stamp,
+      });
+      return commit([created, ...list.map((w) => (w.id === id ? remaining : w))]) ? created : null;
     },
 
     /** 將 sourceId 作品的季數移入 targetId 系列，並刪除原作品。 */
@@ -200,13 +320,19 @@ export function createDramaStore(repo: DramaRepository) {
         remap.set(c.id, id);
         if (!sameName) nextCategories.push({ ...c, id });
       }
-      const added = [...incoming, ...copies]
-        .map(migrateWork)
-        .map((w) => ({
-          ...w,
-          customCategories: (w.customCategories ?? []).map((id) => remap.get(id) ?? id),
-        }));
+      const added = [...incoming, ...copies].map(migrateWork).map((w) => ({
+        ...w,
+        customCategories: (w.customCategories ?? []).map((id) => remap.get(id) ?? id),
+      }));
       return commit([...added, ...list], nextCategories);
+    },
+
+    async traditionalizeAllHongguo() {
+      const { traditionalizeHongguoWork } = await import("./traditional-chinese");
+      const list = ensureLoaded();
+      const next = list.map(traditionalizeHongguoWork);
+      const changed = next.filter((w, i) => JSON.stringify(w) !== JSON.stringify(list[i])).length;
+      return { changed, ok: changed === 0 ? true : commit(next) };
     },
 
     /** 封面遷移用：只替換仍是原值的封面，不更動作品的更新時間 */

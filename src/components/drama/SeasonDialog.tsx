@@ -9,6 +9,7 @@ import { WATCH_STATUS_LABEL, WATCH_STATUS_ORDER } from "@/lib/drama/labels";
 import { dramaStore } from "@/lib/drama/store";
 import type { Season, WatchStatus, Work } from "@/lib/drama/types";
 import { Field, NativeSelect } from "./fields";
+import { RatingStars } from "./RatingStars";
 
 export function SeasonDialog({
   work,
@@ -28,6 +29,9 @@ export function SeasonDialog({
   const [watched, setWatched] = useState("0");
   const [status, setStatus] = useState<WatchStatus>("want");
   const [note, setNote] = useState("");
+  const [title, setTitle] = useState("");
+  const [updateDate, setUpdateDate] = useState("");
+  const [rating, setRating] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -35,8 +39,11 @@ export function SeasonDialog({
     setNumber(String(season?.number ?? nextSeasonNumber(work)));
     setTotal(season ? String(season.totalEpisodes) : "");
     setWatched(String(season?.watchedEpisodes ?? 0));
-    setStatus(season?.status ?? "want");
+    setStatus(season?.status ?? "pending");
     setNote(season?.note ?? "");
+    setTitle(season?.title ?? season?.originTitle ?? "");
+    setUpdateDate(season?.updateDate ?? "");
+    setRating(season?.rating ?? 0);
     setError("");
   }, [open, season, work]);
 
@@ -47,9 +54,9 @@ export function SeasonDialog({
     if (!Number.isInteger(n) || n < 1) return setError("季數需為 1 以上的整數");
     if (work.seasons.some((s) => s.number === n && s.id !== season?.id))
       return setError(`第 ${n} 季已存在`);
-    if (!Number.isInteger(t) || t < 1) return setError("請輸入總集數（1 以上）");
+    if (total !== "" && (!Number.isInteger(t) || t < 0)) return setError("總集數不得小於 0");
     if (!Number.isInteger(w) || w < 0) return setError("已看集數不得小於 0");
-    if (w > t) return setError("已看集數不得超過總集數");
+    if (t > 0 && w > t) return setError("已看集數不得超過總集數");
 
     const now = new Date().toISOString();
     const next = makeSeason(
@@ -57,11 +64,15 @@ export function SeasonDialog({
         ...season,
         id: season?.id,
         number: n,
-        totalEpisodes: t,
-        currentEpisodes: t,
+        title: title.trim() || season?.title,
+        totalEpisodes: total === "" ? 0 : t,
+        currentEpisodes: total === "" ? 0 : t,
         watchedEpisodes: w,
         status,
+        statusMode: "manual",
         note: note.trim(),
+        updateDate: updateDate || null,
+        rating,
         updatedAt: now,
       },
       now,
@@ -82,6 +93,9 @@ export function SeasonDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <Field label="本季名稱">
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="本季名稱" />
+          </Field>
           <div className="grid grid-cols-3 gap-2">
             <Field label="季數">
               <Input
@@ -128,6 +142,12 @@ export function SeasonDialog({
               aria-label="本季備註"
               rows={4}
             />
+          </Field>
+          <Field label="更新日期">
+            <Input type="date" value={updateDate} onChange={(e) => setUpdateDate(e.target.value)} />
+          </Field>
+          <Field label="本季評分">
+            <RatingStars value={rating} onChange={setRating} />
           </Field>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button className="w-full" onClick={save}>

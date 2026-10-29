@@ -6,6 +6,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  Languages,
   Trash2,
 } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
@@ -47,6 +48,7 @@ function SettingsPage() {
   const [dupMode, setDupMode] = useState<"skip" | "copy">("skip");
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmDemo, setConfirmDemo] = useState(false);
+  const [confirmRollback, setConfirmRollback] = useState(false);
 
   if (works === null)
     return (
@@ -57,6 +59,7 @@ function SettingsPage() {
     );
 
   const demoCount = works.filter((w) => w.isDemo).length;
+  const migration = dramaRepo.getMigrationReport();
   const usedKB = Math.round(
     (typeof window !== "undefined"
       ? (window.localStorage.getItem(dramaRepo.storageKey)?.length ?? 0)
@@ -164,6 +167,41 @@ function SettingsPage() {
             className="hidden"
             onChange={(e) => pickFile(e.target.files?.[0])}
           />
+        </Group>
+
+        <Group title="資料整理">
+          <Row
+            icon={Languages}
+            title="紅果作品批次繁體化"
+            desc="轉為台灣繁體並保留紅果原文；個人備註不會更動"
+            action={
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  const result = await dramaStore.traditionalizeAllHongguo();
+                  if (!result.ok) return toast.error("繁體化失敗，原有資料沒有變更。");
+                  toast.success(
+                    result.changed ? `已更新 ${result.changed} 個系列` : "目前沒有需要轉換的作品",
+                  );
+                }}
+              >
+                開始轉換
+              </Button>
+            }
+          />
+          {migration && (
+            <Row
+              icon={ShieldCheck}
+              title="智能系列資料遷移"
+              desc={`已驗證 ${migration.before} → ${migration.after} 筆，遷移前備份仍保留`}
+              action={
+                <Button size="sm" variant="ghost" onClick={() => setConfirmRollback(true)}>
+                  回復舊版
+                </Button>
+              }
+            />
+          )}
         </Group>
 
         <Group title="示範資料">
@@ -309,6 +347,19 @@ function SettingsPage() {
         </DialogContent>
       </Dialog>
 
+      <ConfirmDialog
+        open={confirmRollback}
+        onOpenChange={setConfirmRollback}
+        title="回復遷移前資料？"
+        description={<p>會回到 V1 遷移前的完整本機備份；遷移後新增的修改將不會保留。</p>}
+        confirmText="回復"
+        confirmLabel="確認回復舊版"
+        onConfirm={() => {
+          if (!dramaRepo.rollbackMigration()) return toast.error("找不到遷移前備份。");
+          dramaStore.reload();
+          toast.success("已回復遷移前資料");
+        }}
+      />
       <ConfirmDialog
         open={confirmDemo}
         onOpenChange={setConfirmDemo}

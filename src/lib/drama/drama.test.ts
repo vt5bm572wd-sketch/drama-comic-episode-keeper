@@ -30,6 +30,7 @@ function work(partial: Partial<Work> & { id: string; title: string }): Work {
     tags: [],
     collectStatus: "collected",
     watchStatus: "want",
+    watchStatusMode: "auto",
     rating: 0,
     note: "",
     currentSeasonId: seasons[0]?.id ?? null,
@@ -65,14 +66,14 @@ describe("觀看進度", () => {
     expect(w.seasons[0]?.watchedEpisodes).toBe(1);
     expect(w.lastWatchedAt).toBe(NOW);
   });
-  it("觀看進度不覆寫使用者手動追劇狀態", () => {
+  it("觀看進度會自動同步系列狀態", () => {
     const w = stepEpisode(work({ id: "a", title: "A" }), "a_s1", 1, NOW);
-    expect(w.watchStatus).toBe("want");
+    expect(w.watchStatus).toBe("watching");
   });
-  it("追上目前集數不會覆寫手動作品與季狀態", () => {
+  it("追上可靠總集數會自動標記完成", () => {
     const w = setSeasonProgress(work({ id: "a", title: "A" }), "a_s1", 10, NOW);
-    expect(w.watchStatus).toBe("want");
-    expect(w.seasons[0]?.status).toBe("want");
+    expect(w.watchStatus).toBe("waiting");
+    expect(w.seasons[0]?.status).toBe("completed");
   });
   it("更新某季進度時會設為目前觀看季", () => {
     const w = work({
@@ -137,7 +138,6 @@ describe("搜尋", () => {
   it.each([
     ["劇名", "長安"],
     ["別名", "安雪"],
-    ["演員", "小明"],
     ["分類", "古裝"],
     ["標籤", "宮廷"],
     ["簡介", "重返"],

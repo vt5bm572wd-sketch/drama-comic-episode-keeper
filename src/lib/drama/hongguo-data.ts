@@ -23,10 +23,13 @@ const MAX_LIST = 30;
 export interface OnlineWork {
   seriesId: string;
   title: string;
+  originalTitle?: string;
   coverUrl: string | null;
   synopsis: string;
+  originalSynopsis?: string;
   actors: string[];
   tags: string[];
+  originalTags?: string[];
   totalEpisodes: number | null;
   /** 例如「3726萬熱度」 */
   heat: string | null;

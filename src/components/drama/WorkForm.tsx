@@ -35,8 +35,17 @@ interface SeasonDraft {
   totalEpisodes: string;
   watchedEpisodes: string;
   status: WatchStatus;
+  statusMode: "auto" | "manual";
   note: string;
   originTitle?: string | undefined;
+  title?: string | undefined;
+  originalTitle?: string | undefined;
+  synopsis?: string | undefined;
+  originalSynopsis?: string | undefined;
+  cover?: string | null | undefined;
+  source?: WorkSource | undefined;
+  rating?: number | undefined;
+  updateDate?: string | null | undefined;
   createdAt?: string | undefined;
 }
 
@@ -45,6 +54,9 @@ function toDraft(work?: Work) {
     updateDate: work?.updateDate ?? "",
     seriesStatus: (work?.seriesStatus ?? "pending") as SeriesStatus,
     title: work?.title ?? "",
+    originalTitle: work?.originalTitle,
+    originalSynopsis: work?.originalSynopsis,
+    seriesKey: work?.seriesKey,
     aliases: work?.aliases.join("、") ?? "",
     cover: work?.cover ?? null,
     synopsis: work?.synopsis ?? "",
@@ -53,6 +65,7 @@ function toDraft(work?: Work) {
     tags: work?.tags.join("、") ?? "",
     collectStatus: (work?.collectStatus ?? "collected") as CollectStatus,
     watchStatus: (work?.watchStatus ?? "want") as WatchStatus,
+    watchStatusMode: work?.watchStatusMode ?? "manual",
     rating: work?.rating ?? 0,
     note: work?.note ?? "",
     seasons: (work?.seasons ?? [])
@@ -64,8 +77,17 @@ function toDraft(work?: Work) {
         totalEpisodes: String(s.totalEpisodes),
         watchedEpisodes: String(s.watchedEpisodes),
         status: s.status,
+        statusMode: s.statusMode ?? "manual",
         note: s.note,
         originTitle: s.originTitle,
+        title: s.title,
+        originalTitle: s.originalTitle,
+        synopsis: s.synopsis,
+        originalSynopsis: s.originalSynopsis,
+        cover: s.cover,
+        source: s.source,
+        rating: s.rating,
+        updateDate: s.updateDate,
         createdAt: s.createdAt,
       })),
   };
@@ -76,7 +98,8 @@ const emptySeason = (n: number): SeasonDraft => ({
   number: String(n),
   totalEpisodes: "",
   watchedEpisodes: "0",
-  status: "want",
+  status: "unwatched",
+  statusMode: "auto",
   note: "",
 });
 
@@ -84,6 +107,11 @@ export interface WorkPrefill {
   nonce: number;
   force: boolean;
   title?: string | undefined;
+  originalTitle?: string | undefined;
+  originalSynopsis?: string | undefined;
+  seriesKey?: string | undefined;
+  seasonTitle?: string | undefined;
+  seasonNumber?: number | null | undefined;
   cover?: string | null | undefined;
   synopsis?: string | undefined;
   actors?: string[] | undefined;
@@ -122,6 +150,9 @@ export function WorkForm({
     setD((p) => {
       const n = { ...p };
       if (prefill.title && (f || !p.title.trim())) n.title = prefill.title;
+      if (prefill.originalTitle) n.originalTitle = prefill.originalTitle;
+      if (prefill.originalSynopsis) n.originalSynopsis = prefill.originalSynopsis;
+      if (prefill.seriesKey) n.seriesKey = prefill.seriesKey;
       if (prefill.cover && (f || !p.cover)) n.cover = prefill.cover;
       if (prefill.synopsis && (f || !p.synopsis.trim())) n.synopsis = prefill.synopsis;
       if (prefill.tags?.length && (f || !p.tags.trim())) n.tags = prefill.tags.join("、");
@@ -132,11 +163,28 @@ export function WorkForm({
       }
       if (prefill.type) n.type = prefill.type;
       const total = prefill.totalEpisodes;
-      if (total) {
+      if (total != null || prefill.seasonTitle || prefill.seasonNumber) {
         const first = p.seasons.slice().sort((a, b) => Number(a.number) - Number(b.number))[0];
-        if (first && (f || !first.totalEpisodes)) {
+        if (first) {
           n.seasons = p.seasons.map((s) =>
-            s.id === first.id ? { ...s, totalEpisodes: String(total) } : s,
+            s.id === first.id
+              ? {
+                  ...s,
+                  ...(total != null && (f || !first.totalEpisodes)
+                    ? { totalEpisodes: String(total) }
+                    : {}),
+                  ...(prefill.seasonNumber ? { number: String(prefill.seasonNumber) } : {}),
+                  ...(prefill.seasonTitle
+                    ? { title: prefill.seasonTitle, originTitle: prefill.seasonTitle }
+                    : {}),
+                  ...(prefill.originalTitle ? { originalTitle: prefill.originalTitle } : {}),
+                  ...(prefill.synopsis ? { synopsis: prefill.synopsis } : {}),
+                  ...(prefill.originalSynopsis
+                    ? { originalSynopsis: prefill.originalSynopsis }
+                    : {}),
+                  ...(prefill.cover ? { cover: prefill.cover } : {}),
+                }
+              : s,
           );
         }
       }
@@ -149,10 +197,9 @@ export function WorkForm({
       }
       return rest;
     });
-  }, [prefill?.nonce]);
+  }, [prefill]);
 
-  const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) =>
-    setD((p) => ({ ...p, [k]: v }));
+  const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) => setD((p) => ({ ...p, [k]: v }));
   const setSeason = (id: string, patch: Partial<SeasonDraft>) =>
     setD((p) => ({
       ...p,
@@ -191,10 +238,9 @@ export function WorkForm({
       if (!Number.isInteger(n) || n < 1) e[`s-${s.id}-number`] = "季數需為 1 以上的整數";
       else if (nums.has(n)) e[`s-${s.id}-number`] = "季數重複";
       nums.add(n);
-      if (s.totalEpisodes === "" || !Number.isInteger(total) || total < 1)
-        e[`s-${s.id}-total`] = "請輸入總集數（1 以上）";
-      if (!Number.isInteger(watched) || watched < 0)
-        e[`s-${s.id}-watched`] = "已看集數不得小於 0";
+      if (s.totalEpisodes !== "" && (!Number.isInteger(total) || total < 0))
+        e[`s-${s.id}-total`] = "總集數不得小於 0";
+      if (!Number.isInteger(watched) || watched < 0) e[`s-${s.id}-watched`] = "已看集數不得小於 0";
       else if (Number.isInteger(total) && watched > total)
         e[`s-${s.id}-watched`] = "已看集數不得超過總集數";
     });
@@ -212,7 +258,7 @@ export function WorkForm({
     const now = new Date().toISOString();
     const original = new Map((initial?.seasons ?? []).map((s) => [s.id, s]));
     const seasons = d.seasons.map((s) => {
-      const total = Number(s.totalEpisodes);
+      const total = s.totalEpisodes === "" ? 0 : Number(s.totalEpisodes);
       const prev = original.get(s.id);
       const watched = clampEpisode(Number(s.watchedEpisodes || 0), total);
       const changed =
@@ -231,8 +277,17 @@ export function WorkForm({
           currentEpisodes: total,
           watchedEpisodes: watched,
           status: s.status,
+          statusMode: s.statusMode,
           note: s.note.trim(),
           originTitle: s.originTitle,
+          title: s.title,
+          originalTitle: s.originalTitle,
+          synopsis: s.synopsis,
+          originalSynopsis: s.originalSynopsis,
+          cover: s.cover,
+          source: s.source ?? (d.seasons[0]?.id === s.id ? (source ?? initial?.source) : undefined),
+          rating: s.rating,
+          updateDate: s.updateDate ?? null,
           createdAt: s.createdAt ?? now,
           updatedAt: changed ? now : prev.updatedAt,
         },
@@ -246,6 +301,9 @@ export function WorkForm({
       customCategories: initial?.customCategories ?? [],
       id: initial?.id ?? uid("w"),
       title: d.title.trim(),
+      originalTitle: d.originalTitle,
+      originalSynopsis: d.originalSynopsis,
+      seriesKey: d.seriesKey,
       aliases: splitList(d.aliases),
       cover: d.cover,
       synopsis: d.synopsis.trim(),
@@ -255,6 +313,7 @@ export function WorkForm({
       tags: splitList(d.tags),
       collectStatus: d.collectStatus,
       watchStatus: d.watchStatus,
+      watchStatusMode: initial ? d.watchStatusMode : source ? "auto" : "manual",
       rating: d.rating,
       note: d.note.trim(),
       seasons,
@@ -293,24 +352,53 @@ export function WorkForm({
           </button>
           {d.cover && (
             <div className="grid grid-cols-2 gap-1">
-              <Button type="button" variant="ghost" size="sm" className="px-0" onClick={() => fileRef.current?.click()}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="px-0"
+                onClick={() => fileRef.current?.click()}
+              >
                 更換
               </Button>
-              <Button type="button" variant="ghost" size="sm" className="px-0 text-destructive" onClick={() => set("cover", null)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="px-0 text-destructive"
+                onClick={() => set("cover", null)}
+              >
                 移除
               </Button>
             </div>
           )}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files?.[0])}
+          />
         </div>
         <div className="min-w-0 space-y-4">
           <Field label="劇名 *" htmlFor="title" error={errors["title"]}>
-            <Input id="title" value={d.title} onChange={(e) => set("title", e.target.value)} placeholder="例如：雪落長安" aria-invalid={!!errors["title"]} />
+            <Input
+              id="title"
+              value={d.title}
+              onChange={(e) => set("title", e.target.value)}
+              placeholder="例如：雪落長安"
+              aria-invalid={!!errors["title"]}
+            />
           </Field>
           <Field label="類型">
             <div className="grid grid-cols-2 gap-2">
               {(["short", "comic"] as WorkType[]).map((t) => (
-                <Chip key={t} active={d.type === t} onClick={() => set("type", t)} className="h-11 justify-center rounded-xl">
+                <Chip
+                  key={t}
+                  active={d.type === t}
+                  onClick={() => set("type", t)}
+                  className="h-11 justify-center rounded-xl"
+                >
                   {WORK_TYPE_LABEL[t]}
                 </Chip>
               ))}
@@ -320,7 +408,12 @@ export function WorkForm({
       </div>
 
       <div className="mx-auto w-full max-w-sm text-center">
-        <Field label="劇集更新日期" error={errors["updateDate"]} htmlFor="update-date" hint="作品實際更新內容的日期，不是資料修改日期">
+        <Field
+          label="劇集更新日期"
+          error={errors["updateDate"]}
+          htmlFor="update-date"
+          hint="作品實際更新內容的日期，不是資料修改日期"
+        >
           <Input
             id="update-date"
             type="date"
@@ -332,25 +425,52 @@ export function WorkForm({
       </div>
 
       <Field label="劇集狀態" htmlFor="series-status">
-        <NativeSelect id="series-status" value={d.seriesStatus} onChange={(e) => set("seriesStatus", e.target.value as SeriesStatus)}>
+        <NativeSelect
+          id="series-status"
+          value={d.seriesStatus}
+          onChange={(e) => set("seriesStatus", e.target.value as SeriesStatus)}
+        >
           {Object.entries(SERIES_STATUS_LABEL).map(([key, label]) => (
-            <option key={key} value={key}>{label}</option>
+            <option key={key} value={key}>
+              {label}
+            </option>
           ))}
         </NativeSelect>
       </Field>
 
       <Field label="別名" htmlFor="aliases" hint="多個別名用頓號或逗號分隔">
-        <Input id="aliases" value={d.aliases} onChange={(e) => set("aliases", e.target.value)} placeholder="例如：長安雪、英文片名" />
+        <Input
+          id="aliases"
+          value={d.aliases}
+          onChange={(e) => set("aliases", e.target.value)}
+          placeholder="例如：長安雪、英文片名"
+        />
       </Field>
 
       <Field label="劇情簡介" htmlFor="synopsis">
-        <Textarea id="synopsis" value={d.synopsis} onChange={(e) => set("synopsis", e.target.value)} rows={4} />
+        <Textarea
+          id="synopsis"
+          value={d.synopsis}
+          onChange={(e) => set("synopsis", e.target.value)}
+          rows={4}
+        />
       </Field>
 
       <Field label="分類">
         <div className="flex flex-wrap gap-2">
           {categoryOptions.map((c) => (
-            <Chip key={c} active={d.categories.includes(c)} onClick={() => set("categories", d.categories.includes(c) ? d.categories.filter((x) => x !== c) : [...d.categories, c])}>
+            <Chip
+              key={c}
+              active={d.categories.includes(c)}
+              onClick={() =>
+                set(
+                  "categories",
+                  d.categories.includes(c)
+                    ? d.categories.filter((x) => x !== c)
+                    : [...d.categories, c],
+                )
+              }
+            >
               {c}
             </Chip>
           ))}
@@ -366,13 +486,31 @@ export function WorkForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="收藏狀態">
-          <NativeSelect value={d.collectStatus} onChange={(e) => set("collectStatus", e.target.value as CollectStatus)}>
-            {COLLECT_STATUS_ORDER.map((s) => <option key={s} value={s}>{COLLECT_STATUS_LABEL[s]}</option>)}
+          <NativeSelect
+            value={d.collectStatus}
+            onChange={(e) => set("collectStatus", e.target.value as CollectStatus)}
+          >
+            {COLLECT_STATUS_ORDER.map((s) => (
+              <option key={s} value={s}>
+                {COLLECT_STATUS_LABEL[s]}
+              </option>
+            ))}
           </NativeSelect>
         </Field>
         <Field label="觀看狀態">
-          <NativeSelect value={d.watchStatus} onChange={(e) => set("watchStatus", e.target.value as WatchStatus)}>
-            {WATCH_STATUS_ORDER.map((s) => <option key={s} value={s}>{WATCH_STATUS_LABEL[s]}</option>)}
+          <NativeSelect
+            value={d.watchStatus}
+            aria-label="我的追劇狀態"
+            onChange={(e) => {
+              set("watchStatus", e.target.value as WatchStatus);
+              set("watchStatusMode", "manual");
+            }}
+          >
+            {WATCH_STATUS_ORDER.map((s) => (
+              <option key={s} value={s}>
+                {WATCH_STATUS_LABEL[s]}
+              </option>
+            ))}
           </NativeSelect>
         </Field>
       </div>
@@ -388,8 +526,16 @@ export function WorkForm({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-lg font-semibold">季數與進度</h2>
-          <Button type="button" variant="soft" size="sm" onClick={() => setD((p) => ({ ...p, seasons: [...p.seasons, emptySeason(p.seasons.length + 1)] }))}>
-            <Plus />新增一季
+          <Button
+            type="button"
+            variant="soft"
+            size="sm"
+            onClick={() =>
+              setD((p) => ({ ...p, seasons: [...p.seasons, emptySeason(p.seasons.length + 1)] }))
+            }
+          >
+            <Plus />
+            新增一季
           </Button>
         </div>
         {errors["seasons"] && <p className="text-sm text-destructive">{errors["seasons"]}</p>}
@@ -398,29 +544,67 @@ export function WorkForm({
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">第 {s.number || "?"} 季</span>
               {d.seasons.length > 1 && (
-                <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => setD((p) => ({ ...p, seasons: p.seasons.filter((x) => x.id !== s.id) }))}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive"
+                  onClick={() =>
+                    setD((p) => ({ ...p, seasons: p.seasons.filter((x) => x.id !== s.id) }))
+                  }
+                >
                   <Trash2 />
                 </Button>
               )}
             </div>
             <div className="grid grid-cols-3 gap-2">
               <Field label="季數" error={errors[`s-${s.id}-number`]}>
-                <Input inputMode="numeric" value={s.number} onChange={(e) => setSeason(s.id, { number: e.target.value.replace(/\D/g, "") })} />
+                <Input
+                  inputMode="numeric"
+                  value={s.number}
+                  onChange={(e) => setSeason(s.id, { number: e.target.value.replace(/\D/g, "") })}
+                />
               </Field>
               <Field label="總集數" error={errors[`s-${s.id}-total`]}>
-                <Input inputMode="numeric" value={s.totalEpisodes} onChange={(e) => setSeason(s.id, { totalEpisodes: e.target.value.replace(/\D/g, "") })} />
+                <Input
+                  aria-label="目前更新集數"
+                  inputMode="numeric"
+                  value={s.totalEpisodes}
+                  onChange={(e) =>
+                    setSeason(s.id, { totalEpisodes: e.target.value.replace(/\D/g, "") })
+                  }
+                />
               </Field>
               <Field label="已看集數" error={errors[`s-${s.id}-watched`]}>
-                <Input inputMode="numeric" value={s.watchedEpisodes} onChange={(e) => setSeason(s.id, { watchedEpisodes: e.target.value.replace(/\D/g, "") })} />
+                <Input
+                  inputMode="numeric"
+                  value={s.watchedEpisodes}
+                  onChange={(e) =>
+                    setSeason(s.id, { watchedEpisodes: e.target.value.replace(/\D/g, "") })
+                  }
+                />
               </Field>
             </div>
             <Field label="本季觀看狀態">
-              <NativeSelect value={s.status} onChange={(e) => setSeason(s.id, { status: e.target.value as WatchStatus })}>
-                {WATCH_STATUS_ORDER.map((status) => <option key={status} value={status}>{WATCH_STATUS_LABEL[status]}</option>)}
+              <NativeSelect
+                value={s.status}
+                onChange={(e) =>
+                  setSeason(s.id, { status: e.target.value as WatchStatus, statusMode: "manual" })
+                }
+              >
+                {WATCH_STATUS_ORDER.map((status) => (
+                  <option key={status} value={status}>
+                    {WATCH_STATUS_LABEL[status]}
+                  </option>
+                ))}
               </NativeSelect>
             </Field>
             <Field label="本季備註">
-              <Textarea value={s.note} onChange={(e) => setSeason(s.id, { note: e.target.value })} rows={4} />
+              <Textarea
+                value={s.note}
+                onChange={(e) => setSeason(s.id, { note: e.target.value })}
+                rows={4}
+              />
             </Field>
           </div>
         ))}

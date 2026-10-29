@@ -44,6 +44,7 @@
         "embla-carousel-react": "^8.6.0",
         "input-otp": "^1.4.2",
         "lucide-react": "^0.575.0",
+        "opencc-js": "1.4.2",
         "react": "^19.2.0",
         "react-day-picker": "^9.14.0",
         "react-dom": "^19.2.0",
@@ -955,6 +956,8 @@
     "ofetch": ["ofetch@2.0.0-alpha.3", "", {}, "sha512-zpYTCs2byOuft65vI3z43Dd6iSdFbOZZLb9/d21aCpx2rGastVU9dOCv0lu4ykc1Ur1anAYjDi3SUvR0vq50JA=="],
 
     "ohash": ["ohash@2.0.11", "", {}, "sha512-RdR9FQrFwNBNXAr4GixM8YaRZRJ5PUWbKYbE5eOsrwAjJW0q2REGcf79oYPsLyskQCZG1PLN+S/K1V00joZAoQ=="],
+
+    "opencc-js": ["opencc-js@1.4.2", "", {}, "sha512-EdcspgdROiCCZDM+jZR6Pa670xW+EW2QhctPBQ8gRjg6lrx4IHEl+2s+kt5izk/TkxVRgdWuFgaGkaEdIUfdaw=="],
 
     "opencollective-postinstall": ["opencollective-postinstall@2.0.3", "", { "bin": { "opencollective-postinstall": "index.js" } }, "sha512-8AV/sCtuzUeTo8gQK5qDZzARrulB3egtLzFgteqB2tcT4Mw7B8Kt7JcDHmltjz6FOAHsvTevk70gZEbhM4ZS9Q=="],
 

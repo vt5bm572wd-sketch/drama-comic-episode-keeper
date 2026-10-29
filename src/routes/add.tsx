@@ -10,7 +10,9 @@ import {
 import { BackupImportButton, ScreenshotImportButton } from "@/components/drama/AddImportTools";
 import { PageHeader } from "@/components/drama/PageHeader";
 import { WorkForm, type WorkPrefill } from "@/components/drama/WorkForm";
+import { SeriesMatchDialog } from "@/components/drama/SeriesMatchDialog";
 import { guessWorkType, tagsToCategories } from "@/lib/drama/hongguo-data";
+import { normalizeTitle } from "@/lib/drama/domain";
 import {
   findWorkBySeriesId,
   hongguoDetailUrl,
@@ -18,7 +20,9 @@ import {
   makeSource,
 } from "@/lib/drama/link-import";
 import { dramaStore } from "@/lib/drama/store";
-import type { WorkSource } from "@/lib/drama/types";
+import { parseSeriesIdentity } from "@/lib/drama/series-identity";
+import { toTaiwanTraditional } from "@/lib/drama/traditional-chinese";
+import type { Work, WorkSource } from "@/lib/drama/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/add")({
@@ -52,17 +56,35 @@ function AddPage() {
   const [mode, setMode] = useState<LinkMode | null>(sid ? "url" : null);
   const [source, setSource] = useState<WorkSource | null>(null);
   const [prefill, setPrefill] = useState<WorkPrefill | null>(null);
+  const [possible, setPossible] = useState<{ incoming: Work; target: Work } | null>(null);
 
-  const applyTitle = (title: string, force: boolean) =>
-    setPrefill((p) => ({ title, force, nonce: (p?.nonce ?? 0) + 1 }));
+  const applyTitle = (title: string, force: boolean) => {
+    const traditional = toTaiwanTraditional(title);
+    const identity = parseSeriesIdentity(traditional);
+    setPrefill((p) => ({
+      title: identity.baseTitle,
+      seasonTitle: traditional,
+      seasonNumber: identity.seasonNumber,
+      originalTitle: title,
+      seriesKey: normalizeTitle(identity.baseTitle),
+      force,
+      nonce: (p?.nonce ?? 0) + 1,
+    }));
+  };
 
   function applyDetails({ work }: OnlineDetails, force: boolean) {
     // 線上封面直接保存官方圖片網址，不轉成 Base64
     const cover = work.coverUrl;
+    const identity = parseSeriesIdentity(work.title);
     setPrefill((p) => ({
       nonce: (p?.nonce ?? 0) + 1,
       force,
-      title: work.title,
+      title: identity.baseTitle,
+      originalTitle: work.originalTitle ?? work.title,
+      originalSynopsis: work.originalSynopsis ?? work.synopsis,
+      seriesKey: identity.key,
+      seasonTitle: work.title,
+      seasonNumber: identity.seasonNumber,
       cover,
       synopsis: work.synopsis,
       actors: work.actors,
@@ -145,11 +167,23 @@ function AddPage() {
         prefill={prefill}
         onSubmit={(work) => {
           if (work.source) {
-            const dup = findWorkBySeriesId(dramaStore.getSnapshot(), work.source.seriesId);
-            if (dup) {
-              toast.error(`《${dup.title}》已在收藏中（同一個作品 ID），未重複新增。`);
+            const result = dramaStore.addSmart(work);
+            if (result.kind === "duplicate") {
+              toast.error(`《${result.work.title}》已存在同一個紅果作品 ID，未重複新增。`);
+              navigate({ to: "/work/$id", params: { id: result.work.id }, replace: true });
               return;
             }
+            if (result.kind === "possible") {
+              setPossible({ incoming: result.incoming, target: result.target });
+              return;
+            }
+            toast.success(
+              result.kind === "merged"
+                ? `已加入《${result.work.title}》系列，原有進度完整保留`
+                : `已新增《${result.work.title}》`,
+            );
+            navigate({ to: "/work/$id", params: { id: result.work.id }, replace: true });
+            return;
           }
           if (dramaStore.add(work)) {
             toast.success(`已新增《${work.title}》`);
@@ -157,7 +191,28 @@ function AddPage() {
           }
         }}
       />
+      <SeriesMatchDialog
+        open={!!possible}
+        incoming={possible?.incoming ?? null}
+        target={possible?.target ?? null}
+        onCancel={() => setPossible(null)}
+        onMerge={() => {
+          if (!possible) return;
+          const merged = dramaStore.confirmSmartMerge(possible.target.id, possible.incoming);
+          if (!merged) return toast.error("系列合併失敗，原有資料沒有變更。");
+          setPossible(null);
+          toast.success(`已加入《${merged.title}》系列`);
+          navigate({ to: "/work/$id", params: { id: merged.id }, replace: true });
+        }}
+        onSeparate={() => {
+          if (!possible) return;
+          const incoming = possible.incoming;
+          if (!dramaStore.add(incoming)) return toast.error("收藏失敗，請稍後重試。");
+          setPossible(null);
+          toast.success(`已獨立收藏《${incoming.title}》`);
+          navigate({ to: "/work/$id", params: { id: incoming.id }, replace: true });
+        }}
+      />
     </main>
   );
 }
-

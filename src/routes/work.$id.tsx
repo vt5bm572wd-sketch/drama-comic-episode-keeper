@@ -1,5 +1,15 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { ChevronLeft, FileQuestion, FolderInput, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  FileQuestion,
+  FolderInput,
+  Pencil,
+  Plus,
+  Scissors,
+  Trash2,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { SeriesInfo } from "@/components/drama/SeriesInfo";
@@ -79,6 +89,7 @@ function WorkDetail({ work }: { work: Work }) {
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSeasonDelete, setConfirmSeasonDelete] = useState(false);
+  const [confirmSplit, setConfirmSplit] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
 
   const selectSeason = (seasonId: string) =>
@@ -197,16 +208,23 @@ function WorkDetail({ work }: { work: Work }) {
           )}
         </div>
 
-        {/* 季數 */}
+        {/* 系列管理：季數、合併、拆分、排序統一在同一區 */}
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-serif text-lg font-semibold">
-              {seasons.length > 1 ? `系列 · 共 ${seasons.length} 季` : "觀看進度"}
-            </h2>
-            <Button variant="soft" size="sm" onClick={() => setSeasonDialog({ open: true })}>
-              <Plus />
-              新增一季
-            </Button>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <h2 className="font-serif text-lg font-semibold">系列管理</h2>
+              <p className="text-xs text-subtle-foreground">共 {seasons.length} 季</p>
+            </div>
+            <div className="flex gap-1.5">
+              <Button variant="secondary" size="sm" onClick={() => setMergeOpen(true)}>
+                <FolderInput />
+                合併作品
+              </Button>
+              <Button variant="soft" size="sm" onClick={() => setSeasonDialog({ open: true })}>
+                <Plus />
+                新增一季
+              </Button>
+            </div>
           </div>
 
           {seasons.length > 1 && (
@@ -229,7 +247,9 @@ function WorkDetail({ work }: { work: Work }) {
             <div className="surface space-y-4 p-4" aria-label={`第 ${selected.number} 季`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-semibold">第 {selected.number} 季</p>
+                  <p className="font-semibold">
+                    第 {selected.number} 季{selected.title ? ` · ${selected.title}` : ""}
+                  </p>
                   {selected.originTitle && (
                     <p className="truncate text-xs text-subtle-foreground">
                       原作品《{selected.originTitle}》
@@ -241,6 +261,25 @@ function WorkDetail({ work }: { work: Work }) {
 
               <EpisodeStepper work={work} season={selected} />
 
+              <div className="grid grid-cols-2 gap-2 text-xs text-subtle-foreground">
+                <span>
+                  {selected.updateDate ? `更新：${selected.updateDate}` : "未提供更新日期"}
+                </span>
+                <span className="text-right">
+                  {selected.rating ? `本季評分：${selected.rating} 星` : "本季未評分"}
+                </span>
+              </div>
+              {selected.source && (
+                <a
+                  href={hongguoDetailUrl(selected.source.seriesId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block break-all text-xs text-primary underline-offset-4 hover:underline"
+                >
+                  紅果來源 · ID {selected.source.seriesId}
+                </a>
+              )}
+
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
                 <label className="space-y-1.5">
                   <span className="block text-[13px] text-muted-foreground">本季狀態</span>
@@ -251,6 +290,7 @@ function WorkDetail({ work }: { work: Work }) {
                       dramaStore.upsertSeason(work.id, {
                         ...selected,
                         status: e.target.value as WatchStatus,
+                        statusMode: "manual",
                         updatedAt: new Date().toISOString(),
                       })
                     }
@@ -295,15 +335,39 @@ function WorkDetail({ work }: { work: Work }) {
                   編輯本季
                 </Button>
                 {seasons.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => setConfirmSeasonDelete(true)}
-                  >
-                    <Trash2 />
-                    刪除本季
-                  </Button>
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="向前排序"
+                      disabled={selected.id === seasons[0]?.id}
+                      onClick={() => dramaStore.reorderSeason(work.id, selected.id, -1)}
+                    >
+                      <ChevronUp />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="向後排序"
+                      disabled={selected.id === seasons.at(-1)?.id}
+                      onClick={() => dramaStore.reorderSeason(work.id, selected.id, 1)}
+                    >
+                      <ChevronDown />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmSplit(true)}>
+                      <Scissors />
+                      拆分
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => setConfirmSeasonDelete(true)}
+                    >
+                      <Trash2 />
+                      刪除
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -370,14 +434,10 @@ function WorkDetail({ work }: { work: Work }) {
           </InfoBlock>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button variant="secondary" onClick={() => setMergeOpen(true)}>
-            <FolderInput />
-            移動到系列
-          </Button>
+        <div>
           <Button
             variant="outline"
-            className="text-destructive"
+            className="w-full text-destructive"
             onClick={() => setConfirmDelete(true)}
           >
             <Trash2 />
@@ -426,6 +486,21 @@ function WorkDetail({ work }: { work: Work }) {
           }
         }}
       />
+      {selected && (
+        <ConfirmDialog
+          open={confirmSplit}
+          onOpenChange={setConfirmSplit}
+          title={`將第 ${selected.number} 季拆成獨立作品？`}
+          description={<p>本季來源、進度、評分與備註都會完整移到新的作品卡片。</p>}
+          confirmLabel="確認拆分"
+          onConfirm={() => {
+            const created = dramaStore.splitSeason(work.id, selected.id);
+            if (!created) return toast.error("拆分失敗，原有資料沒有變更。");
+            toast.success(`已拆分為《${created.title}》`);
+            navigate({ to: "/work/$id", params: { id: created.id }, replace: true });
+          }}
+        />
+      )}
       {selected && (
         <ConfirmDialog
           open={confirmSeasonDelete}

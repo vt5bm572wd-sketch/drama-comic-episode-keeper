@@ -10,7 +10,11 @@ import type { Work, WorkSource } from "./types";
  * 辨識成功只代表取得 series_id 與來源網址，並未取得作品資料。
  */
 
-export const HONGGUO_HOSTS = ["hongguoduanju.com", "www.hongguoduanju.com", "novelquickapp.com"] as const;
+export const HONGGUO_HOSTS = [
+  "hongguoduanju.com",
+  "www.hongguoduanju.com",
+  "novelquickapp.com",
+] as const;
 
 const SERIES_ID_RE = /^\d{6,25}$/;
 const MAX_INPUT = 2000;
@@ -65,13 +69,18 @@ const BARE_URL_RE = new RegExp(
 
 function findUrlCandidates(text: string): string[] {
   const http = Array.from(text.matchAll(HTTP_URL_RE), (m) => m[0]);
-  const list = http.length > 0 ? http : Array.from(text.matchAll(BARE_URL_RE), (m) => `https://${m[1] ?? ""}`);
+  const list =
+    http.length > 0 ? http : Array.from(text.matchAll(BARE_URL_RE), (m) => `https://${m[1] ?? ""}`);
   return list.map((u) => u.replace(TRAILING_PUNCT, "")).filter(Boolean);
 }
 
 /** 分享文字中的劇名：優先取《》，其次「」『』。 */
 export function extractShareTitle(text: string): string | null {
-  const patterns = [/《([^《》\n]{1,120})》/u, /「([^「」\n]{1,120})」/u, /『([^『』\n]{1,120})』/u];
+  const patterns = [
+    /《([^《》\n]{1,120})》/u,
+    /「([^「」\n]{1,120})」/u,
+    /『([^『』\n]{1,120})』/u,
+  ];
   for (const re of patterns) {
     const m = text.match(re);
     const t = m?.[1]?.replace(/\s+/g, " ").trim();
@@ -81,9 +90,7 @@ export function extractShareTitle(text: string): string | null {
 }
 
 type UrlCheck =
-  | { kind: "official"; url: URL }
-  | { kind: "invalid" }
-  | { kind: "other"; host: string };
+  { kind: "official"; url: URL } | { kind: "invalid" } | { kind: "other"; host: string };
 
 function checkUrl(raw: string): UrlCheck {
   let url: URL;
@@ -118,7 +125,8 @@ function extractSeriesId(url: URL): { id: string | null; raw: string | null; sho
 export function parseWorkLink(input: string): LinkParseResult {
   const text = (input ?? "").trim();
   if (!text) return fail("empty", "請先貼上作品網址或分享文字。");
-  if (text.length > MAX_INPUT) return fail("too_long", `內容太長（上限 ${MAX_INPUT} 字），請只貼上網址或分享文字。`);
+  if (text.length > MAX_INPUT)
+    return fail("too_long", `內容太長（上限 ${MAX_INPUT} 字），請只貼上網址或分享文字。`);
 
   const candidates = findUrlCandidates(text);
   if (candidates.length === 0) {
@@ -161,7 +169,10 @@ export function parseWorkLink(input: string): LinkParseResult {
     return fail("invalid_id", "作品 ID 格式不正確（應為 6 至 25 位數字），請確認網址是否完整。");
   }
   if (id === null) {
-    return fail("missing_id", "已辨識為紅果短劇網址，但缺少作品 ID（series_id）。請改貼作品頁的網址。");
+    return fail(
+      "missing_id",
+      "已辨識為紅果短劇網址，但缺少作品 ID（series_id）。請改貼作品頁的網址。",
+    );
   }
 
   return {
@@ -175,10 +186,15 @@ export function parseWorkLink(input: string): LinkParseResult {
 
 /** 找出已收藏且來源 ID 相同的作品 */
 export function findWorkBySeriesId(works: Work[], seriesId: string): Work | undefined {
-  return works.find((w) => w.source?.platform === "hongguo" && w.source.seriesId === seriesId);
+  return works.find(
+    (w) =>
+      (w.source?.platform === "hongguo" && w.source.seriesId === seriesId) ||
+      w.seasons.some(
+        (season) => season.source?.platform === "hongguo" && season.source.seriesId === seriesId,
+      ),
+  );
 }
 
 export function makeSource(result: LinkSuccess, now = new Date().toISOString()): WorkSource {
   return { platform: "hongguo", seriesId: result.seriesId, url: result.sourceUrl, linkedAt: now };
 }
-

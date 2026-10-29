@@ -3,7 +3,13 @@ import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { matchesQuery, nextSeasonNumber } from "@/lib/drama/domain";
 import { dramaStore, useWorks } from "@/lib/drama/store";
@@ -11,7 +17,7 @@ import type { Work } from "@/lib/drama/types";
 import { cn } from "@/lib/utils";
 import { WorkCover } from "./WorkCover";
 
-/** 把目前作品移到另一個系列底下，成為該系列的新季數。 */
+/** 系列管理內的手動合併工具。 */
 export function MergeDialog({
   work,
   open,
@@ -21,7 +27,8 @@ export function MergeDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
-  const works = useWorks() ?? [];
+  const snapshot = useWorks();
+  const works = useMemo(() => snapshot ?? [], [snapshot]);
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [targetId, setTargetId] = useState<string | null>(null);
@@ -55,12 +62,18 @@ export function MergeDialog({
     >
       <DialogContent>
         <DialogHeader className="text-left">
-          <DialogTitle className="font-serif">移動到系列</DialogTitle>
+          <DialogTitle className="font-serif">系列管理：合併作品</DialogTitle>
           <DialogDescription>
-            《{work.title}》的 {work.seasons.length} 季將接在目標系列最後一季之後，所有觀看進度與備註都會保留。
+            《{work.title}》的 {work.seasons.length}{" "}
+            季將接在目標系列最後一季之後，所有觀看進度與備註都會保留。
           </DialogDescription>
         </DialogHeader>
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋目標系列" aria-label="搜尋目標系列" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="搜尋目標系列"
+          aria-label="搜尋目標系列"
+        />
         <div className="-mx-1 max-h-[40dvh] space-y-1.5 overflow-y-auto px-1">
           {candidates.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">沒有其他作品可以合併</p>
@@ -91,4 +104,3 @@ export function MergeDialog({
     </Dialog>
   );
 }
-

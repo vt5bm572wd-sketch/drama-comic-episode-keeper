@@ -11,6 +11,7 @@ import {
   type RankingResult,
 } from "./hongguo-data";
 import { hongguoDetailUrl, isValidSeriesId } from "./link-import";
+import { toSimplifiedChinese, traditionalizeOnlineWork } from "./traditional-chinese";
 
 const BROWSER_HEADERS = {
   "User-Agent":
@@ -41,7 +42,7 @@ export const getHongguoRanking = createServerFn({ method: "POST" })
       const result: RankingResult = {
         ok: true,
         kind: data.kind,
-        items,
+        items: items.map(traditionalizeOnlineWork),
         updatedAt: new Date().toISOString(),
       };
       rankingCache.set(data.kind, { expiresAt: Date.now() + RANKING_TTL_MS, result });
@@ -110,7 +111,7 @@ export const lookupHongguoWork = createServerFn({ method: "POST" })
         message: "已連到官方網站，但無法讀出作品資料（可能是網站改版），請手動填寫。",
       };
     }
-    return { ok: true, work: parsed };
+    return { ok: true, work: traditionalizeOnlineWork(parsed) };
   });
 
 export const searchHongguo = createServerFn({ method: "POST" })
@@ -126,7 +127,9 @@ export const searchHongguo = createServerFn({ method: "POST" })
     if (!data.query) return { ok: true, items: [], page: 1, hasMore: false, total: 0 };
 
     // 目前官網搜尋走 /search/{keyword}，搜尋資料放在頁面的 _ROUTER_DATA。
-    const pageUrl = new URL(`/search/${encodeURIComponent(data.query)}`, HONGGUO_ORIGIN);
+    // 紅果以簡體索引為主；繁體搜尋詞先轉簡體，回傳結果再轉回台灣繁體。
+    const sourceQuery = toSimplifiedChinese(data.query);
+    const pageUrl = new URL(`/search/${encodeURIComponent(sourceQuery)}`, HONGGUO_ORIGIN);
     if (data.page > 1) pageUrl.searchParams.set("page", String(data.page));
 
     try {
@@ -137,7 +140,8 @@ export const searchHongguo = createServerFn({ method: "POST" })
       });
       if (res.ok) {
         const parsed = parseSearchHtml(await res.text(), data.page);
-        if (parsed.ok && parsed.items.length > 0) return parsed;
+        if (parsed.ok && parsed.items.length > 0)
+          return { ...parsed, items: parsed.items.map(traditionalizeOnlineWork) };
       }
     } catch (e) {
       console.error("hongguo search page failed", e);
@@ -145,7 +149,7 @@ export const searchHongguo = createServerFn({ method: "POST" })
 
     // 舊 endpoint 作為備援，避免官網暫時切換格式時完全失效。
     const legacyUrl = new URL("/api/search/result", HONGGUO_ORIGIN);
-    legacyUrl.searchParams.set("query", data.query);
+    legacyUrl.searchParams.set("query", sourceQuery);
     if (data.page > 1) legacyUrl.searchParams.set("page", String(data.page));
     try {
       const res = await fetch(legacyUrl, {
@@ -158,7 +162,12 @@ export const searchHongguo = createServerFn({ method: "POST" })
       });
       if (res.ok) {
         const text = await res.text();
-        if (text.trim()) return parseSearchJson(JSON.parse(text), data.page);
+        if (text.trim()) {
+          const parsed = parseSearchJson(JSON.parse(text), data.page);
+          return parsed.ok
+            ? { ...parsed, items: parsed.items.map(traditionalizeOnlineWork) }
+            : parsed;
+        }
       }
     } catch (e) {
       console.error("hongguo legacy search failed", e);

@@ -54,13 +54,13 @@ describe("新增與編輯的共用表單", () => {
     expect(saved.seasons[0]).toMatchObject({
       currentEpisodes: 40,
       watchedEpisodes: 35,
-      totalEpisodes: 100,
+      totalEpisodes: 40,
     });
   });
-  it("提供四種劇集狀態與六種追劇狀態", () => {
+  it("提供四種劇集狀態與自動及手動追劇狀態", () => {
     render(<WorkForm submitLabel="新增" onSubmit={() => {}} />);
     expect(screen.getByLabelText("劇集狀態").querySelectorAll("option")).toHaveLength(4);
-    expect(screen.getByLabelText("我的追劇狀態").querySelectorAll("option")).toHaveLength(6);
+    expect(screen.getByLabelText("我的追劇狀態").querySelectorAll("option")).toHaveLength(8);
   });
   it("列表顯示作品日期與衍生提示", () => {
     render(<SeriesInfo work={w} />);

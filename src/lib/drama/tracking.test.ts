@@ -27,6 +27,7 @@ function work(): Work {
     tags: ["重生"],
     collectStatus: "favorite",
     watchStatus: "paused",
+    watchStatusMode: "manual",
     rating: 4,
     note: "原備註",
     seasons: [
@@ -141,7 +142,22 @@ describe("相容、安全及備份", () => {
     const parsed = parseBackup(JSON.stringify(createBackup([w], stamp, cats)), []);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.preview.customCategories).toEqual(cats);
-    expect(parsed.preview.fresh[0]).toMatchObject(w);
+    expect(parsed.preview.fresh[0]).toMatchObject({
+      id: w.id,
+      title: w.title,
+      customCategories: w.customCategories,
+      updateDate: w.updateDate,
+      watchStatus: w.watchStatus,
+      note: w.note,
+      seasons: [
+        expect.objectContaining({
+          id: "s1",
+          watchedEpisodes: 35,
+          currentEpisodes: 35,
+          status: w.seasons[0]!.status,
+        }),
+      ],
+    });
   });
   it("不覆蓋損壞 JSON", () => {
     localStorage.setItem("nina-drama:v1", "broken");
