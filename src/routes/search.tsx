@@ -1,13 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { Search, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
 import { OnlineSearchResults } from "@/components/drama/OnlineSearchResults";
 import { PageHeader } from "@/components/drama/PageHeader";
 import { WorkRow } from "@/components/drama/WorkCards";
 import { Button } from "@/components/ui/button";
 import { searchWorks } from "@/lib/drama/domain";
-import { useWorks } from "@/lib/drama/store";
+import type { OnlineWork } from "@/lib/drama/hongguo-data";
+import { lookupHongguoWork } from "@/lib/drama/hongguo.functions";
+import { buildSourceUpdate } from "@/lib/drama/source-update";
+import { dramaStore, useWorks } from "@/lib/drama/store";
+import type { Work } from "@/lib/drama/types";
 
 export const Route = createFileRoute("/search")({
   validateSearch: (s: Record<string, unknown>): { q?: string | undefined } => ({
@@ -94,7 +100,7 @@ function SearchPage() {
               {results.length > 0 ? (
                 <div className="space-y-3">
                   {results.map((w) => (
-                    <WorkRow key={w.id} work={w} />
+                    <LocalSearchResult key={w.id} work={w} />
                   ))}
                 </div>
               ) : (
@@ -118,5 +124,131 @@ function SearchPage() {
         )}
       </div>
     </main>
+  );
+}
+
+function sourceIdFor(work: Work) {
+  return (
+    work.source?.seriesId ??
+    work.seasons.find((season) => season.source)?.source?.seriesId ??
+    work.seasons.flatMap((season) => season.sources ?? [])[0]?.seriesId ??
+    null
+  );
+}
+
+function episodeLabel(work: Work) {
+  const current =
+    work.seasons.find((season) => season.id === work.currentSeasonId) ?? work.seasons[0];
+  return current ? `${current.currentEpisodes ?? current.totalEpisodes} 集` : "未提供";
+}
+
+function LocalSearchResult({ work }: { work: Work }) {
+  const lookup = useServerFn(lookupHongguoWork);
+  const [state, setState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "error"; message: string }
+    | { kind: "preview"; online: OnlineWork }
+  >({ kind: "idle" });
+  const seriesId = sourceIdFor(work);
+
+  async function checkUpdate() {
+    if (!seriesId) return;
+    setState({ kind: "loading" });
+    try {
+      const result = await lookup({ data: { seriesId } });
+      setState(
+        result.ok
+          ? { kind: "preview", online: result.work }
+          : { kind: "error", message: result.message },
+      );
+    } catch {
+      setState({ kind: "error", message: "暫時無法取得紅果資料，本機收藏沒有變更。" });
+    }
+  }
+
+  function applyUpdate(online: OnlineWork) {
+    const suggested = buildSourceUpdate(work, online, new Date().toISOString());
+    if (!dramaStore.update(work.id, suggested)) {
+      toast.error("更新失敗，原收藏沒有變更。");
+      return;
+    }
+    setState({ kind: "idle" });
+    toast.success("已更新紅果作品資料；進度、評分、備註與自訂分類均已保留。");
+  }
+
+  return (
+    <div className="surface space-y-3 p-3">
+      <WorkRow work={work} />
+      <div className="flex gap-2">
+        <Button asChild size="sm" variant="secondary">
+          <Link to="/work/$id" params={{ id: work.id }}>
+            查看詳情
+          </Link>
+        </Button>
+        {seriesId && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={state.kind === "loading"}
+            onClick={() => void checkUpdate()}
+          >
+            {state.kind === "loading" ? "取得資料中…" : "更新作品資料"}
+          </Button>
+        )}
+      </div>
+      {state.kind === "error" && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 p-3 text-xs text-destructive"
+        >
+          {state.message}
+          <Button type="button" size="sm" variant="ghost" onClick={() => void checkUpdate()}>
+            重新取得
+          </Button>
+        </div>
+      )}
+      {state.kind === "preview" && (
+        <div className="space-y-3 rounded-lg border border-primary/30 bg-primary-soft p-3 text-xs">
+          <p className="font-medium text-foreground">更新前請確認差異</p>
+          <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+            <span>欄位</span>
+            <span>原本資料</span>
+            <span>新取得資料</span>
+            <span>劇名</span>
+            <span className="break-words text-foreground">{work.title}</span>
+            <span className="break-words text-foreground">{state.online.title}</span>
+            <span>集數</span>
+            <span className="text-foreground">{episodeLabel(work)}</span>
+            <span className="text-foreground">
+              {state.online.totalEpisodes ? `${state.online.totalEpisodes} 集` : "未提供"}
+            </span>
+            <span>簡介</span>
+            <span className="text-foreground">{work.synopsis ? "已有" : "無"}</span>
+            <span className="text-foreground">{state.online.synopsis ? "有新資料" : "未提供"}</span>
+            <span>封面</span>
+            <span className="text-foreground">{work.cover ? "已有" : "無"}</span>
+            <span className="text-foreground">{state.online.coverUrl ? "有新資料" : "未提供"}</span>
+          </div>
+          <p className="rounded-md bg-background/70 p-2 text-muted-foreground">
+            建議更新：劇名、封面、簡介、標籤及官方集數。個人進度、評分、備註、收藏狀態與自訂分類不會被覆蓋。
+          </p>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" onClick={() => applyUpdate(state.online)}>
+              確認更新
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setState({ kind: "idle" })}
+            >
+              取消
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
