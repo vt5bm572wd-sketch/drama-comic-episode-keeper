@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isSafeCover } from "./cover-store";
+import { normalizeDramaWork } from "./data-normalization";
 import { validUpdateDate, clampEpisode, normalizeTitle, uid } from "./domain";
 import { hongguoDetailUrl, isValidSeriesId } from "./link-import";
 import type { BackupFile, CustomCategory, Work } from "./types";
@@ -38,7 +39,7 @@ const seasonSchema = z.object({
   totalEpisodes: z.number().int().min(0).max(10000),
   currentEpisodes: z.number().int().min(0).max(10000).optional(),
   watchedEpisodes: z.number().int().min(0),
-  status: watchStatus.default("want"),
+  status: watchStatus.default("unwatched"),
   statusMode: z.enum(["auto", "manual"]).optional(),
   note: z.string().default(""),
   createdAt: z.string().optional(),
@@ -66,7 +67,7 @@ const workSchema = z.object({
   seriesStatus: z.enum(["ongoing", "completed", "paused", "pending"]).default("pending"),
   tags: z.array(z.string()).default([]),
   collectStatus: z.enum(["favorite", "collected", "archived"]).default("collected"),
-  watchStatus: watchStatus.default("want"),
+  watchStatus: watchStatus.default("unwatched"),
   watchStatusMode: z.enum(["auto", "manual"]).optional(),
   rating: z.number().min(0).max(5).default(0),
   note: z.string().default(""),
@@ -201,9 +202,8 @@ export function parseBackup(
       updatedAt: s.updatedAt ?? now,
     }));
     const { source: rawSource, ...rest } = d;
-    const work: Work = {
+    const candidate: Work = {
       ...rest,
-      // 網址一律依 ID 重建，不信任備份檔中的網址字串
       ...(rawSource
         ? {
             source: {
@@ -223,6 +223,7 @@ export function parseBackup(
       createdAt: d.createdAt ?? now,
       updatedAt: d.updatedAt ?? now,
     };
+    const work = normalizeDramaWork(candidate);
 
     const key = normalizeTitle(work.title);
     const sourceIds = [work.source, ...work.seasons.map((s) => s.source)]
