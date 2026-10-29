@@ -27,7 +27,7 @@ export function SeasonDialog({
   const [number, setNumber] = useState("");
   const [total, setTotal] = useState("");
   const [watched, setWatched] = useState("0");
-  const [status, setStatus] = useState<WatchStatus>("want");
+  const [status, setStatus] = useState<WatchStatus>("unwatched");
   const [note, setNote] = useState("");
   const [title, setTitle] = useState("");
   const [updateDate, setUpdateDate] = useState("");
