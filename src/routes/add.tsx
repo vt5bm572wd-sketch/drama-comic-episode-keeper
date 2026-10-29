@@ -11,8 +11,8 @@ import { BackupImportButton, ScreenshotImportButton } from "@/components/drama/A
 import { PageHeader } from "@/components/drama/PageHeader";
 import { WorkForm, type WorkPrefill } from "@/components/drama/WorkForm";
 import { SeriesMatchDialog } from "@/components/drama/SeriesMatchDialog";
-import { guessWorkType, tagsToCategories } from "@/lib/drama/hongguo-data";
 import { normalizeTitle } from "@/lib/drama/domain";
+import { buildHongguoPrefill } from "@/lib/drama/hongguo-prefill";
 import {
   findWorkBySeriesId,
   hongguoDetailUrl,
@@ -74,25 +74,11 @@ function AddPage() {
   };
 
   function applyDetails({ work }: OnlineDetails, force: boolean) {
-    // 線上封面直接保存官方圖片網址，不轉成 Base64
-    const cover = work.coverUrl;
-    const identity = parseSeriesIdentity(work.originalTitle ?? work.title);
+    const normalized = buildHongguoPrefill(work);
     setPrefill((p) => ({
       nonce: (p?.nonce ?? 0) + 1,
       force,
-      title: identity.baseTitle,
-      originalTitle: work.originalTitle ?? work.title,
-      originalSynopsis: work.originalSynopsis ?? work.synopsis,
-      seriesKey: identity.key,
-      seasonTitle: work.title,
-      seasonNumber: identity.seasonNumber,
-      cover,
-      synopsis: work.synopsis,
-      actors: work.actors,
-      tags: work.tags,
-      categories: tagsToCategories(work.tags),
-      type: guessWorkType(work),
-      totalEpisodes: work.totalEpisodes,
+      ...normalized,
     }));
     if (force) toast.success("已用線上資料覆蓋表單");
   }
