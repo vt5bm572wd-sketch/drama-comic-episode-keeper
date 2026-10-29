@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseBackup } from "./backup";
 import { normalizeDramaWork } from "./data-normalization";
 import { makeSeason } from "./domain";
+import { buildHongguoPrefill } from "./hongguo-prefill";
 import { buildSourceUpdate } from "./source-update";
 import { traditionalizeOnlineWork } from "./traditional-chinese";
 import type { OnlineWork } from "./hongguo-data";
@@ -61,7 +62,6 @@ function legacyHongguoWork(): Work {
 describe("NINA DRAMA V2 修復正規化", () => {
   it("把作品與季的 legacy want 真正轉成 unwatched", () => {
     const legacy = legacyHongguoWork();
-    // makeSeason already canonicalizes incoming legacy season values; force a real old stored value.
     legacy.seasons[0]!.status = "want";
     const normalized = normalizeDramaWork(legacy);
     expect(normalized.watchStatus).toBe("unwatched");
@@ -109,6 +109,29 @@ describe("NINA DRAMA V2 修復正規化", () => {
     expect(updated.note).toBe("私人备注不要改");
     expect(updated.seasons[0]?.note).toBe("本季备注不要改");
     expect(updated.seasons[0]?.currentEpisodes).toBe(82);
+  });
+
+  it("紅果新增表單一律用繁體劇名，原始簡體只保留在 originalTitle", () => {
+    const online: OnlineWork = {
+      seriesId: source.seriesId,
+      title: "道印入体：得到道家传承后我终于发达了",
+      originalTitle: "道印入体：得到道家传承后我终于发达了",
+      coverUrl: null,
+      synopsis: "孤儿陈昊宇自幼随道长出家，师父离世后下山。",
+      originalSynopsis: "孤儿陈昊宇自幼随道长出家，师父离世后下山。",
+      actors: [],
+      tags: ["都市", "玄学"],
+      totalEpisodes: 113,
+      heat: null,
+      rating: null,
+      sourceUrl: source.url,
+    };
+    const prefill = buildHongguoPrefill(online);
+    expect(prefill.title).toBe("道印入體：得到道家傳承後我終於發達了");
+    expect(prefill.seasonTitle).toBe("道印入體：得到道家傳承後我終於發達了");
+    expect(prefill.originalTitle).toBe("道印入体：得到道家传承后我终于发达了");
+    expect(prefill.synopsis).toContain("孤兒陳昊宇");
+    expect(prefill.originalSynopsis).toContain("孤儿陈昊宇");
   });
 
   it("舊備份可接受 want，匯入後立即正規化為 unwatched 與台灣繁體", () => {
