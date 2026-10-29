@@ -60,7 +60,9 @@ describe("新增與編輯的共用表單", () => {
   it("提供四種劇集狀態與七種正式追劇狀態，且不再出現想看", () => {
     render(<WorkForm submitLabel="新增" onSubmit={() => {}} />);
     expect(screen.getByLabelText("劇集狀態").querySelectorAll("option")).toHaveLength(4);
-    const options = [...screen.getByLabelText("我的追劇狀態").querySelectorAll("option")];
+    const statusSelect = screen.getByLabelText("我的追劇狀態") as HTMLSelectElement;
+    const options = [...statusSelect.querySelectorAll("option")];
+    expect(statusSelect.value).toBe("unwatched");
     expect(options).toHaveLength(7);
     expect(options.map((option) => option.textContent)).toEqual([
       "未觀看",
