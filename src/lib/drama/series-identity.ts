@@ -1,4 +1,5 @@
 import { normalizeTitle } from "./domain";
+import { toTaiwanTraditional } from "./traditional-chinese";
 import type { Work } from "./types";
 
 const CN_NUMBER: Record<string, number> = {
@@ -60,7 +61,7 @@ export function parseSeriesIdentity(title: string): SeriesIdentity {
     if (baseTitle) {
       return {
         baseTitle,
-        key: normalizeTitle(baseTitle),
+        key: normalizeTitle(toTaiwanTraditional(baseTitle)),
         seasonNumber: number,
         explicitSeason: true,
         sequelOnly: false,
@@ -76,7 +77,7 @@ export function parseSeriesIdentity(title: string): SeriesIdentity {
     if (baseTitle)
       return {
         baseTitle,
-        key: normalizeTitle(baseTitle),
+        key: normalizeTitle(toTaiwanTraditional(baseTitle)),
         seasonNumber: null,
         explicitSeason: true,
         sequelOnly: true,
@@ -84,7 +85,7 @@ export function parseSeriesIdentity(title: string): SeriesIdentity {
   }
   return {
     baseTitle: cleaned,
-    key: normalizeTitle(cleaned),
+    key: normalizeTitle(toTaiwanTraditional(cleaned)),
     seasonNumber: 1,
     explicitSeason: false,
     sequelOnly: false,
@@ -120,10 +121,13 @@ export function findSeriesMatch(works: Work[], incoming: Work): SeriesMatch {
       incoming.originalTitle,
   );
   if (!identity.explicitSeason) return { kind: "none", identity };
-  const exact = works.find((work) => {
-    const key = work.seriesKey ?? parseSeriesIdentity(work.originalTitle ?? work.title).key;
-    return key === identity.key;
-  });
+  // Match by the exact normalized base title, not a source ID or fuzzy similarity.
+  // Legacy seriesKey may contain an unnormalized title, so derive it afresh.
+  const exact = works.find((work) =>
+    [work.title, work.originalTitle, work.seriesKey, ...work.aliases].some(
+      (title) => title && parseSeriesIdentity(title).key === identity.key,
+    ),
+  );
   if (
     exact &&
     identity.seasonNumber &&
@@ -131,11 +135,5 @@ export function findSeriesMatch(works: Work[], incoming: Work): SeriesMatch {
   ) {
     return { kind: "confirmed", identity, target: exact };
   }
-  const possible = works
-    .filter((work) => work.id !== incoming.id)
-    .map((target) => ({ target, score: titleSimilarity(identity.baseTitle, target.title) }))
-    .sort((a, b) => b.score - a.score)[0];
-  return possible && possible.score >= 0.78
-    ? { kind: "possible", identity, target: possible.target }
-    : { kind: "none", identity };
+  return { kind: "none", identity };
 }
