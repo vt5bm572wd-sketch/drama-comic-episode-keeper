@@ -1,5 +1,5 @@
 import type { Work, CustomCategory, MergeSnapshot } from "./types";
-import { migrateWork } from "./domain";
+import { normalizeDramaWorks } from "./data-normalization";
 
 /**
  * 資料存取層介面。第一版以 localStorage 實作；
@@ -16,8 +16,8 @@ export interface DramaRepository {
 }
 
 const STORAGE_KEY = "nina-drama:v1";
-const MIGRATION_BACKUP_KEY = "nina-drama:migration-backup:v1-to-v2";
-const MIGRATION_REPORT_KEY = "nina-drama:migration-report:v2";
+const MIGRATION_BACKUP_KEY = "nina-drama:migration-backup:v2-to-v3";
+const MIGRATION_REPORT_KEY = "nina-drama:migration-report:v3";
 const MERGE_SNAPSHOT_KEY = "nina-drama:merge-snapshot:v2";
 
 export class CorruptDramaDataError extends Error {
@@ -28,7 +28,7 @@ export class CorruptDramaDataError extends Error {
 }
 
 interface Stored {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   works: Work[];
   customCategories?: CustomCategory[];
 }
@@ -43,10 +43,10 @@ export class LocalStorageRepository implements DramaRepository {
     try {
       const parsed = JSON.parse(raw) as Stored;
       if (!parsed || !Array.isArray(parsed.works)) throw new CorruptDramaDataError();
-      if (parsed.version === 2) return parsed.works;
+      if (parsed.version === 3) return parsed.works;
 
       // Safari 原地遷移：先留完整原文備份，驗證筆數與 ID 後才替換主資料。
-      const migrated = parsed.works.map(migrateWork);
+      const migrated = normalizeDramaWorks(parsed.works);
       const beforeIds = parsed.works.map((w) => w.id).sort();
       const afterIds = migrated.map((w) => w.id).sort();
       if (
@@ -58,7 +58,7 @@ export class LocalStorageRepository implements DramaRepository {
       if (!window.localStorage.getItem(MIGRATION_BACKUP_KEY)) {
         window.localStorage.setItem(MIGRATION_BACKUP_KEY, raw);
       }
-      const next: Stored = { ...parsed, version: 2, works: migrated };
+      const next: Stored = { ...parsed, version: 3, works: migrated };
       window.localStorage.setItem(this.key, JSON.stringify(next));
       window.localStorage.setItem(
         MIGRATION_REPORT_KEY,
@@ -95,7 +95,7 @@ export class LocalStorageRepository implements DramaRepository {
     // Never overwrite an unreadable store, including during startup maintenance.
     const previous = raw ? JSON.parse(raw) : {};
     if (raw && !Array.isArray(previous.works)) throw new Error("無法讀取現有資料，已停止寫入");
-    const data: Stored = { ...previous, version: 2, works, customCategories: categories };
+    const data: Stored = { ...previous, version: 3, works, customCategories: categories };
     window.localStorage.setItem(this.key, JSON.stringify(data));
   }
 
