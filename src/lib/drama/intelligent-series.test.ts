@@ -71,16 +71,27 @@ function work(
 
 describe("季數名稱識別", () => {
   it.each([
-    ["顏心未改第二季", 2],
-    ["顏心未改第3季", 3],
-    ["顏心未改第三部", 3],
-    ["顏心未改 S2", 2],
-    ["顏心未改 Season 3", 3],
-  ])("識別 %s", (title, season) => {
+    ["顏心未改第二季", 2, "顏心未改"],
+    ["顏心未改第3季", 3, "顏心未改"],
+    ["顏心未改第三部", 3, "顏心未改"],
+    ["顏心未改 S2", 2, "顏心未改"],
+    ["顏心未改 Season 3", 3, "顏心未改"],
+    ["顏心未改2", 2, "顏心未改"],
+    ["遇棠方知涉3", 3, "遇棠方知涉"],
+    ["霧晚肆意蔓延4", 4, "霧晚肆意蔓延"],
+  ])("識別 %s", (title, season, baseTitle) => {
     expect(parseSeriesIdentity(title)).toMatchObject({
-      baseTitle: "顏心未改",
+      baseTitle,
       seasonNumber: season,
       explicitSeason: true,
+    });
+  });
+
+  it("不把年份尾數誤判為季數", () => {
+    expect(parseSeriesIdentity("回到2025")).toMatchObject({
+      baseTitle: "回到2025",
+      seasonNumber: 1,
+      explicitSeason: false,
     });
   });
 });

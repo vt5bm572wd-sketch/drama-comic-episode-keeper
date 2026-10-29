@@ -44,6 +44,9 @@ export function parseSeriesIdentity(title: string): SeriesIdentity {
     /(?:[\s·:：\-—]|^)*第\s*([一二兩三四五六七八九十百\d]+)\s*[季部]\s*$/i,
     /(?:[\s·:：\-—]|^)S(?:eason)?\s*([\d]+)\s*$/i,
     /(?:[\s·:：\-—]|^)Season\s*([\d]+)\s*$/i,
+    // 紅果常把續季直接寫在劇名尾端，例如《顏心未改2》、《遇棠方知涉3》。
+    // 僅接受 2–20，且數字前不得還是數字，避免把年份或劇名數字誤當季數。
+    /[\s·:：\-—]*(?<!\d)([2-9]|1\d|20)\s*$/,
   ];
   for (const pattern of patterns) {
     const match = cleaned.match(pattern);
