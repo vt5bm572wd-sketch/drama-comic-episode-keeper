@@ -74,6 +74,7 @@ export function traditionalizeHongguoWork(work: Work): Work {
     title: toTaiwanTraditional(originalTitle),
     synopsis: toTaiwanTraditional(originalSynopsis),
     aliases: Array.from(new Set(work.aliases.map(toTaiwanTraditional))),
+    actors: Array.from(new Set(work.actors.map(toTaiwanTraditional))),
     categories: Array.from(new Set(work.categories.map(toTaiwanTraditional))),
     tags: Array.from(new Set(work.tags.map(toTaiwanTraditional))),
     seasons: work.seasons.map(traditionalizeSeason),
