@@ -6,6 +6,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  Languages,
   Trash2,
 } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
@@ -47,6 +48,7 @@ function SettingsPage() {
   const [dupMode, setDupMode] = useState<"skip" | "copy">("skip");
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmDemo, setConfirmDemo] = useState(false);
+  const [confirmRollback, setConfirmRollback] = useState(false);
 
   if (works === null)
     return (
@@ -57,6 +59,7 @@ function SettingsPage() {
     );
 
   const demoCount = works.filter((w) => w.isDemo).length;
+  const migration = dramaRepo.getMigrationReport();
   const usedKB = Math.round(
     (typeof window !== "undefined"
       ? (window.localStorage.getItem(dramaRepo.storageKey)?.length ?? 0)
@@ -166,6 +169,91 @@ function SettingsPage() {
           />
         </Group>
 
+        <Group title="資料整理">
+          <Row
+            icon={Sparkles}
+            title="智能整理舊收藏"
+            desc="先建立完整快照，再合併高信心的第一季與續季；衝突項目保留待確認"
+            action={
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const result = dramaStore.organizeLegacySeries();
+                  if (!result.merged) {
+                    toast(
+                      result.pending.length
+                        ? `有 ${result.pending.length} 部需要手動確認`
+                        : "沒有需要整理的舊收藏",
+                    );
+                    return;
+                  }
+                  toast.success(`已合併 ${result.merged} 部續季`, {
+                    description: result.pending.length
+                      ? `${result.pending.length} 部衝突項目未變更`
+                      : undefined,
+                    action: {
+                      label: "復原",
+                      onClick: () =>
+                        dramaStore.undoLastMerge() && toast.success("已恢復整理前資料"),
+                    },
+                  });
+                }}
+              >
+                開始整理
+              </Button>
+            }
+          />
+          {dramaStore.getMergeSnapshot() && (
+            <Row
+              icon={RotateCcw}
+              title="復原上次系列整理"
+              desc="完整恢復合併前的作品、季數、進度、評分、備註與來源"
+              action={
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => dramaStore.undoLastMerge() && toast.success("已恢復合併前資料")}
+                >
+                  一鍵復原
+                </Button>
+              }
+            />
+          )}
+          <Row
+            icon={Languages}
+            title="紅果作品批次繁體化"
+            desc="轉為台灣繁體並保留紅果原文；個人備註不會更動"
+            action={
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  const result = await dramaStore.traditionalizeAllHongguo();
+                  if (!result.ok) return toast.error("繁體化失敗，原有資料沒有變更。");
+                  toast.success(
+                    result.changed ? `已更新 ${result.changed} 個系列` : "目前沒有需要轉換的作品",
+                  );
+                }}
+              >
+                開始轉換
+              </Button>
+            }
+          />
+          {migration && (
+            <Row
+              icon={ShieldCheck}
+              title="智能系列資料遷移"
+              desc={`已驗證 ${migration.before} → ${migration.after} 筆，遷移前備份仍保留`}
+              action={
+                <Button size="sm" variant="ghost" onClick={() => setConfirmRollback(true)}>
+                  回復舊版
+                </Button>
+              }
+            />
+          )}
+        </Group>
+
         <Group title="示範資料">
           {demoCount > 0 ? (
             <Row
@@ -218,7 +306,7 @@ function SettingsPage() {
         <div className="surface flex gap-3 p-4 text-xs leading-relaxed text-muted-foreground">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
           <div>
-            <p className="font-medium text-foreground">NINA DRAMA V0.1</p>
+            <p className="font-medium text-foreground">NINA DRAMA V2.0</p>
             <p className="mt-1">
               目前為本機版本：不需登入、不連接任何外部資料庫或影音服務，也不提供播放。清除瀏覽器資料會一併刪除收藏，請定期匯出備份。
             </p>
@@ -309,6 +397,19 @@ function SettingsPage() {
         </DialogContent>
       </Dialog>
 
+      <ConfirmDialog
+        open={confirmRollback}
+        onOpenChange={setConfirmRollback}
+        title="回復遷移前資料？"
+        description={<p>會回到 V1 遷移前的完整本機備份；遷移後新增的修改將不會保留。</p>}
+        confirmText="回復"
+        confirmLabel="確認回復舊版"
+        onConfirm={() => {
+          if (!dramaRepo.rollbackMigration()) return toast.error("找不到遷移前備份。");
+          dramaStore.reload();
+          toast.success("已回復遷移前資料");
+        }}
+      />
       <ConfirmDialog
         open={confirmDemo}
         onOpenChange={setConfirmDemo}

@@ -6,6 +6,8 @@ export const WORK_TYPE_LABEL: Record<WorkType, string> = {
 };
 
 export const WATCH_STATUS_LABEL: Record<WatchStatus, string> = {
+  unwatched: "未觀看",
+  pending: "待觀看",
   waiting: "等更新",
   want: "想看",
   watching: "追劇中",
@@ -16,6 +18,8 @@ export const WATCH_STATUS_LABEL: Record<WatchStatus, string> = {
 
 export const WATCH_STATUS_ORDER: WatchStatus[] = [
   "watching",
+  "pending",
+  "unwatched",
   "waiting",
   "want",
   "paused",

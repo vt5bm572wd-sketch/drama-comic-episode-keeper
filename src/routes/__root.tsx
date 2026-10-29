@@ -15,6 +15,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/drama/BottomNav";
 import { Toaster } from "@/components/ui/sonner";
+import { dramaStore } from "@/lib/drama/store";
 
 function NotFoundComponent() {
   return (
@@ -95,7 +96,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@500;600;700&display=swap",
       },
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
+      { rel: "icon", href: "/favicon-32.png?v=3", type: "image/png", sizes: "32x32" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=3", sizes: "180x180" },
+      {
+        rel: "apple-touch-icon-precomposed",
+        href: "/apple-touch-icon.png?v=3",
+        sizes: "180x180",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -122,10 +131,31 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideNav = pathname === "/add" || pathname.startsWith("/edit/");
+  const dataError = typeof window === "undefined" ? null : dramaStore.getDataError();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      document.querySelectorAll("h2").forEach((heading) => {
+        if (heading.textContent?.trim() === "演員") {
+          const section = heading.closest("section");
+          if (section) section.hidden = true;
+        }
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <div className="mx-auto min-h-dvh w-full max-w-xl overflow-x-clip">
+        {dataError && (
+          <div
+            role="alert"
+            className="sticky top-0 z-50 border-b border-destructive/40 bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground"
+          >
+            {dataError} 原始資料仍保留，請前往設定匯入備份。
+          </div>
+        )}
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
       </div>
@@ -134,4 +164,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

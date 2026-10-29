@@ -1,0 +1,39 @@
+/* iPhone Safari: keep the update-date control inside the same content column as the fields below. */
+form > div:has(#update-date) {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  overflow: hidden;
+}
+
+#update-date {
+  display: block !important;
+  inline-size: 100% !important;
+  width: 100% !important;
+  min-inline-size: 0 !important;
+  min-width: 0 !important;
+  max-inline-size: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: center !important;
+  padding-inline: 0.75rem !important;
+}
+
+#update-date::-webkit-date-and-time-value {
+  inline-size: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  text-align: center !important;
+}
+
+#update-date::-webkit-calendar-picker-indicator {
+  margin: 0 !important;
+  padding: 0 !important;
+}

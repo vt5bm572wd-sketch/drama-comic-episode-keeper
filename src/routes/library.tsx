@@ -45,7 +45,10 @@ export const Route = createFileRoute("/library")({
   head: () => ({
     meta: [
       { title: "我的收藏｜NINA DRAMA" },
-      { name: "description", content: "依類型、觀看狀態、收藏狀態與分類篩選並排序你的短劇與漫劇收藏。" },
+      {
+        name: "description",
+        content: "依類型、觀看狀態、收藏狀態與分類篩選並排序你的短劇與漫劇收藏。",
+      },
       { property: "og:title", content: "我的收藏｜NINA DRAMA" },
       { property: "og:description", content: "篩選並排序你的短劇與漫劇收藏。" },
       { property: "og:type", content: "website" },
@@ -91,15 +94,25 @@ function LibraryPage() {
         <>
           <div className="space-y-3 px-5">
             <ChipRow>
-              <Chip active={!search.type} onClick={() => update({ type: undefined })}>全部類型</Chip>
+              <Chip active={!search.type} onClick={() => update({ type: undefined })}>
+                全部類型
+              </Chip>
               {(["short", "comic"] as WorkType[]).map((t) => (
-                <Chip key={t} active={search.type === t} onClick={() => update({ type: search.type === t ? undefined : t })}>
+                <Chip
+                  key={t}
+                  active={search.type === t}
+                  onClick={() => update({ type: search.type === t ? undefined : t })}
+                >
                   {WORK_TYPE_LABEL[t]}
                 </Chip>
               ))}
               <span className="mx-1 w-px shrink-0 bg-border" />
               {WATCH_STATUS_ORDER.map((s) => (
-                <Chip key={s} active={search.watch === s} onClick={() => update({ watch: search.watch === s ? undefined : s })}>
+                <Chip
+                  key={s}
+                  active={search.watch === s}
+                  onClick={() => update({ watch: search.watch === s ? undefined : s })}
+                >
                   {WATCH_STATUS_LABEL[s]}
                 </Chip>
               ))}
@@ -107,12 +120,16 @@ function LibraryPage() {
 
             {categories.length > 0 && (
               <ChipRow>
-                <Chip active={!search.category} onClick={() => update({ category: undefined })}>全部分類</Chip>
+                <Chip active={!search.category} onClick={() => update({ category: undefined })}>
+                  全部分類
+                </Chip>
                 {categories.map((category) => (
                   <Chip
                     key={category}
                     active={search.category === category}
-                    onClick={() => update({ category: search.category === category ? undefined : category })}
+                    onClick={() =>
+                      update({ category: search.category === category ? undefined : category })
+                    }
                   >
                     {category}
                   </Chip>
@@ -124,11 +141,15 @@ function LibraryPage() {
               <NativeSelect
                 aria-label="收藏狀態篩選"
                 value={search.collect ?? ""}
-                onChange={(e) => update({ collect: (e.target.value || undefined) as CollectStatus | undefined })}
+                onChange={(e) =>
+                  update({ collect: (e.target.value || undefined) as CollectStatus | undefined })
+                }
               >
                 <option value="">全部收藏狀態</option>
                 {COLLECT_STATUS_ORDER.map((s) => (
-                  <option key={s} value={s}>{COLLECT_STATUS_LABEL[s]}</option>
+                  <option key={s} value={s}>
+                    {COLLECT_STATUS_LABEL[s]}
+                  </option>
                 ))}
               </NativeSelect>
               <NativeSelect
@@ -137,7 +158,9 @@ function LibraryPage() {
                 onChange={(e) => update({ sort: e.target.value as SortKey })}
               >
                 {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
-                  <option key={k} value={k}>排序：{SORT_LABEL[k]}</option>
+                  <option key={k} value={k}>
+                    排序：{SORT_LABEL[k]}
+                  </option>
                 ))}
               </NativeSelect>
             </div>
@@ -162,7 +185,14 @@ function LibraryPage() {
                   hasFilter && (
                     <Button
                       variant="soft"
-                      onClick={() => update({ type: undefined, watch: undefined, collect: undefined, category: undefined })}
+                      onClick={() =>
+                        update({
+                          type: undefined,
+                          watch: undefined,
+                          collect: undefined,
+                          category: undefined,
+                        })
+                      }
                     >
                       清除篩選
                     </Button>

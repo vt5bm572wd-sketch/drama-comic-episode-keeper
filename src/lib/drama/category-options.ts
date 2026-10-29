@@ -3,7 +3,6 @@ import { PRESET_CATEGORIES } from "./labels";
 
 const STORAGE_KEY = "nina-drama-category-options-v1";
 type Listener = () => void;
-
 const listeners = new Set<Listener>();
 let cache: string[] | null = null;
 
@@ -18,7 +17,6 @@ function normalize(values: unknown): string[] {
   }
   return result;
 }
-
 function load(): string[] {
   if (cache) return cache;
   if (typeof window === "undefined") return [...PRESET_CATEGORIES];
@@ -30,13 +28,10 @@ function load(): string[] {
   }
   return cache;
 }
-
 function save(next: string[]): boolean {
   const normalized = normalize(next);
   try {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-    }
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
     cache = normalized;
     listeners.forEach((listener) => listener());
     return true;
@@ -44,21 +39,14 @@ function save(next: string[]): boolean {
     return false;
   }
 }
-
-export function getCategoryOptions(): string[] {
-  return load();
-}
-
 export function addCategoryOption(name: string): boolean {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 30 || load().includes(trimmed)) return false;
   return save([...load(), trimmed]);
 }
-
 export function removeCategoryOption(name: string): boolean {
   return save(load().filter((item) => item !== name));
 }
-
 export function useCategoryOptions(): string[] {
   return useSyncExternalStore(
     (listener) => {
@@ -69,12 +57,12 @@ export function useCategoryOptions(): string[] {
     () => PRESET_CATEGORIES,
   );
 }
-
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key !== STORAGE_KEY) return;
     try {
-      cache = event.newValue === null ? [...PRESET_CATEGORIES] : normalize(JSON.parse(event.newValue));
+      cache =
+        event.newValue === null ? [...PRESET_CATEGORIES] : normalize(JSON.parse(event.newValue));
     } catch {
       cache = [...PRESET_CATEGORIES];
     }

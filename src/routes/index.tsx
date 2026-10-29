@@ -1,18 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Film, Plus, Search, Settings2, X } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { ChevronRight, Film, Search } from "lucide-react";
 import { AddFab } from "@/components/drama/AddFab";
+import { CategoryManager } from "@/components/drama/CategoryManager";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
+import { HomeDiscovery } from "@/components/drama/HomeDiscovery";
 import { Section } from "@/components/drama/fields";
 import { PosterCard } from "@/components/drama/WorkCards";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  addCategoryOption,
-  removeCategoryOption,
-  useCategoryOptions,
-} from "@/lib/drama/category-options";
 import { computeStats, recentlyAdded, recentlyWatched } from "@/lib/drama/domain";
 import { useWorks } from "@/lib/drama/store";
 import type { Work } from "@/lib/drama/types";
@@ -35,7 +29,7 @@ function HomePage() {
   const works = useWorks();
 
   return (
-    <main className="pb-nav">
+    <main className="home-ambient pb-nav">
       <header className="pt-safe px-5 pb-5">
         <p className="brand-title pt-4 text-2xl text-foreground">NINA DRAMA</p>
         <p className="mt-1 text-xs tracking-[0.2em] text-subtle-foreground">私人短劇・漫劇收藏館</p>
@@ -48,22 +42,7 @@ function HomePage() {
         </Link>
       </header>
 
-      {works === null ? (
-        <LoadingBlock />
-      ) : works.length === 0 ? (
-        <EmptyState
-          icon={Film}
-          title="收藏還是空的"
-          description="新增第一部短劇或漫劇，開始記錄追劇進度。也可以到設定載入示範資料。"
-          action={
-            <Button asChild>
-              <Link to="/add">新增作品</Link>
-            </Button>
-          }
-        />
-      ) : (
-        <HomeContent works={works} />
-      )}
+      {works === null ? <LoadingBlock /> : <HomeContent works={works} />}
 
       <AddFab />
     </main>
@@ -71,57 +50,55 @@ function HomePage() {
 }
 
 function localDateKey(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatUpdateDate(value: string) {
-  const [y, m, d] = value.split("-").map(Number);
-  if (!y || !m || !d) return value;
-  return new Intl.DateTimeFormat("zh-TW", { month: "numeric", day: "numeric", weekday: "short" }).format(
-    new Date(y, m - 1, d),
-  );
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  }).format(new Date(year, month - 1, day));
 }
 
 function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>> }) {
   const stats = computeStats(works);
   const watched = recentlyWatched(works, 10);
   const added = recentlyAdded(works, 10);
-  const categories = useCategoryOptions();
-  const [manageCategories, setManageCategories] = useState(false);
-  const [newCategory, setNewCategory] = useState("");
   const demoCount = works.filter((w) => w.isDemo).length;
   const today = localDateKey();
   const upcoming = works
-    .filter((w) => !!w.updateDate && w.updateDate >= today && w.seriesStatus !== "completed")
+    .filter(
+      (work) => !!work.updateDate && work.updateDate >= today && work.seriesStatus !== "completed",
+    )
     .sort((a, b) => (a.updateDate ?? "").localeCompare(b.updateDate ?? ""))
     .slice(0, 10);
-  const categoryCounts = new Map<string, number>();
-  for (const work of works) {
-    for (const category of work.categories) {
-      if (categories.includes(category)) categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
-    }
-  }
-
-  function addCategory() {
-    if (!newCategory.trim()) return;
-    if (!addCategoryOption(newCategory)) {
-      toast.error("分類已存在，或名稱格式不正確");
-      return;
-    }
-    setNewCategory("");
-    toast.success("已新增分類");
-  }
 
   return (
     <div className="space-y-9">
       <div className="grid grid-cols-3 gap-2.5 px-5">
         <StatCard label="收藏作品" value={stats.total} to="/library" />
         <StatCard label="追劇中" value={stats.watching} to="/watching" tab="watching" highlight />
-        <StatCard label="已完結" value={stats.completed} to="/watching" tab="completed" />
+        <StatCard label="已看完" value={stats.completed} to="/watching" tab="completed" />
       </div>
+
+      {works.length === 0 && (
+        <EmptyState
+          icon={Film}
+          title="收藏還是空的"
+          description="新增第一部短劇或漫劇，開始記錄追劇進度。"
+          action={
+            <Button asChild>
+              <Link to="/add">新增作品</Link>
+            </Button>
+          }
+        />
+      )}
 
       {demoCount > 0 && (
         <div className="mx-5 flex items-center justify-between gap-3 rounded-xl border border-gold/25 bg-gold/10 px-4 py-3 text-xs text-gold">
@@ -151,92 +128,20 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
       <Section
         title="最近新增"
         action={
-          <Link to="/library" search={{ sort: "created" }} className="flex items-center text-xs text-muted-foreground">
+          <Link
+            to="/library"
+            search={{ sort: "created" }}
+            className="flex items-center text-xs text-muted-foreground"
+          >
             全部 <ChevronRight className="size-4" />
           </Link>
         }
       >
-        <PosterRow works={added} />
+        <PosterRow works={added} showProgress />
       </Section>
 
-      <Section
-        title="常用分類"
-        action={
-          <button
-            type="button"
-            onClick={() => setManageCategories((v) => !v)}
-            className="flex items-center gap-1 text-xs text-muted-foreground active:opacity-70"
-          >
-            <Settings2 className="size-3.5" /> 設定
-          </button>
-        }
-      >
-        {manageCategories && (
-          <div className="mb-3 space-y-3 rounded-2xl border border-border bg-card p-3">
-            <div className="flex gap-2">
-              <Input
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addCategory();
-                  }
-                }}
-                placeholder="新增分類名稱"
-                maxLength={30}
-              />
-              <Button type="button" size="icon" variant="soft" aria-label="新增分類" onClick={addCategory}>
-                <Plus />
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <span key={category} className="inline-flex items-center gap-1 rounded-full bg-elevated py-1 pl-3 pr-1 text-sm">
-                  {category}
-                  <button
-                    type="button"
-                    aria-label={`刪除分類 ${category}`}
-                    className="grid size-7 place-items-center rounded-full text-subtle-foreground active:bg-muted"
-                    onClick={() => removeCategoryOption(category)}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <p className="text-[11px] leading-relaxed text-subtle-foreground">
-              刪除只會從可選分類中隱藏，不會刪除既有作品已保存的分類資料。
-            </p>
-          </div>
-        )}
-
-        {categories.length > 0 ? (
-          <div className="grid grid-cols-2 gap-2.5">
-            {categories.map((category) => (
-              <Link
-                key={category}
-                to="/library"
-                search={{ category }}
-                className="surface flex items-center justify-between px-4 py-3.5 active:scale-[0.98]"
-              >
-                <span className="truncate font-serif text-[15px] font-semibold">{category}</span>
-                <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">
-                  {categoryCounts.get(category) ?? 0} 部
-                </span>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setManageCategories(true)}
-            className="w-full rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground"
-          >
-            尚未設定分類，點此新增
-          </button>
-        )}
-      </Section>
+      <HomeDiscovery works={works} />
+      <CategoryManager works={works} />
     </div>
   );
 }
@@ -256,7 +161,13 @@ function StatCard({
 }) {
   const body = (
     <>
-      <p className={highlight ? "font-display text-3xl font-semibold text-primary tabular-nums" : "font-display text-3xl font-semibold tabular-nums"}>
+      <p
+        className={
+          highlight
+            ? "font-display text-3xl font-semibold text-primary tabular-nums"
+            : "font-display text-3xl font-semibold tabular-nums"
+        }
+      >
         {value}
       </p>
       <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
@@ -274,12 +185,29 @@ function StatCard({
   );
 }
 
+function UpcomingRow({ works }: { works: Work[] }) {
+  return (
+    <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
+      {works.map((work, index) => (
+        <div key={work.id} className="w-[112px] shrink-0">
+          <PosterCard work={work} eager={index < 3} />
+          {work.updateDate && (
+            <p className="mt-1 text-[11px] font-medium text-primary">
+              {formatUpdateDate(work.updateDate)} 更新
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PosterRow({
   works,
   showProgress = false,
   showUnread = false,
 }: {
-  works: Work[];
+  works: NonNullable<ReturnType<typeof useWorks>>;
   showProgress?: boolean;
   showUnread?: boolean;
 }) {
@@ -288,21 +216,6 @@ function PosterRow({
       {works.map((w, i) => (
         <div key={w.id} className="w-[112px] shrink-0">
           <PosterCard work={w} eager={i < 3} showProgress={showProgress} showUnread={showUnread} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function UpcomingRow({ works }: { works: Work[] }) {
-  return (
-    <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
-      {works.map((work, i) => (
-        <div key={work.id} className="w-[112px] shrink-0">
-          <PosterCard work={work} eager={i < 3} />
-          {work.updateDate && (
-            <p className="mt-1 truncate text-[11px] font-medium text-primary">{formatUpdateDate(work.updateDate)} 更新</p>
-          )}
         </div>
       ))}
     </div>

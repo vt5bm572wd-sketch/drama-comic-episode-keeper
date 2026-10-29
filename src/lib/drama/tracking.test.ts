@@ -9,7 +9,7 @@ import {
   validUpdateDate,
   workTotals,
 } from "./domain";
-import { LocalStorageRepository } from "./repository";
+import { LocalStorageRepository, MemoryRepository } from "./repository";
 import { createDramaStore } from "./store";
 import type { Work } from "./types";
 
@@ -27,6 +27,7 @@ function work(): Work {
     tags: ["重生"],
     collectStatus: "favorite",
     watchStatus: "paused",
+    watchStatusMode: "manual",
     rating: 4,
     note: "原備註",
     seasons: [
@@ -141,12 +142,44 @@ describe("相容、安全及備份", () => {
     const parsed = parseBackup(JSON.stringify(createBackup([w], stamp, cats)), []);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.preview.customCategories).toEqual(cats);
-    expect(parsed.preview.fresh[0]).toMatchObject(w);
+    expect(parsed.preview.fresh[0]).toMatchObject({
+      id: w.id,
+      title: w.title,
+      customCategories: w.customCategories,
+      updateDate: w.updateDate,
+      watchStatus: w.watchStatus,
+      note: w.note,
+      seasons: [
+        expect.objectContaining({
+          id: "s1",
+          watchedEpisodes: 35,
+          currentEpisodes: 35,
+          status: w.seasons[0]!.status,
+        }),
+      ],
+    });
   });
   it("不覆蓋損壞 JSON", () => {
     localStorage.setItem("nina-drama:v1", "broken");
     expect(() => new LocalStorageRepository().save([work()], [])).toThrow();
     expect(localStorage.getItem("nina-drama:v1")).toBe("broken");
+  });
+  it("損壞 JSON 不會被當成空收藏，也會阻斷後續寫入", () => {
+    localStorage.setItem("nina-drama:v1", "broken");
+    const store = createDramaStore(new LocalStorageRepository());
+    expect(store.getSnapshot()).toEqual([]);
+    expect(store.getDataError()).toContain("停止所有寫入");
+    expect(store.add(work())).toBe(false);
+    expect(localStorage.getItem("nina-drama:v1")).toBe("broken");
+  });
+
+  it("連載增加集數後由等待更新轉為待觀看並顯示未看集數", () => {
+    const w = { ...work(), watchStatus: "waiting" as const, watchStatusMode: "auto" as const };
+    w.seasons[0] = { ...w.seasons[0]!, status: "waiting", currentEpisodes: 40 };
+    const store = createDramaStore(new MemoryRepository([w]));
+    store.upsertSeason("a", { ...w.seasons[0]!, currentEpisodes: 45 });
+    expect(store.get("a")?.watchStatus).toBe("watching");
+    expect(progressHint(store.get("a")!)).toBe("有 10 集未看");
   });
   it("日期驗證拒絕2月30日、接受閏年", () => {
     expect(validUpdateDate("2026-02-30")).toBe(false);

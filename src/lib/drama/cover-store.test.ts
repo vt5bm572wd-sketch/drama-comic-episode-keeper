@@ -19,7 +19,8 @@ import type { Work } from "./types";
 
 const NOW = "2026-10-27T00:00:00.000Z";
 // 1x1 JPEG 的開頭位元組（內容不重要，只要是 base64）
-const DATA_URL = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U";
+const DATA_URL =
+  "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U";
 
 function work(id: string, cover: string | null): Work {
   const s = makeSeason({ id: `${id}_s1`, number: 1, totalEpisodes: 80, watchedEpisodes: 12 }, NOW);
@@ -53,9 +54,17 @@ describe("封面儲存", () => {
 
   it("舊資料的 Base64 封面搬進 IndexedDB，作品只留參照，觀看進度不變", async () => {
     const covers = new MemoryCoverStore();
-    const repo = new MemoryRepository([work("a", DATA_URL), work("b", "https://p3-novel.byteimg.com/x.image"), work("c", null)]);
+    const repo = new MemoryRepository([
+      work("a", DATA_URL),
+      work("b", "https://p3-novel.byteimg.com/x.image"),
+      work("c", null),
+    ]);
     const store = createDramaStore(repo);
-    await runCoverMaintenance(() => store.getSnapshot(), (c) => store.replaceCovers(c), covers);
+    await runCoverMaintenance(
+      () => store.getSnapshot(),
+      (c) => store.replaceCovers(c),
+      covers,
+    );
 
     const saved = repo.load()!;
     const a = saved.find((w) => w.id === "a")!;
@@ -75,7 +84,9 @@ describe("封面儲存", () => {
   });
 
   it("遷移期間使用者已更換封面時，不覆蓋新封面", () => {
-    const store = createDramaStore(new MemoryRepository([work("a", "https://p3-novel.byteimg.com/new.image")]));
+    const store = createDramaStore(
+      new MemoryRepository([work("a", "https://p3-novel.byteimg.com/new.image")]),
+    );
     store.replaceCovers([{ workId: "a", from: DATA_URL, to: `${COVER_REF_PREFIX}k1` }]);
     expect(store.get("a")!.cover).toBe("https://p3-novel.byteimg.com/new.image");
   });
@@ -102,6 +113,17 @@ describe("封面儲存", () => {
     expect(covers.map.size).toBe(2);
   });
 
+  it("備份也會內嵌並還原每季獨立封面", async () => {
+    const covers = new MemoryCoverStore();
+    await covers.put("season", dataUrlToRecord(DATA_URL));
+    const item = work("season-cover", null);
+    item.seasons[0]!.cover = `${COVER_REF_PREFIX}season`;
+    const [exported] = await inlineCoversForBackup([item], covers);
+    expect(exported?.seasons[0]?.cover).toBe(DATA_URL);
+    const [imported] = await externalizeCovers([exported!], covers);
+    expect(isCoverRef(imported?.seasons[0]?.cover)).toBe(true);
+  });
+
   it("備份檔中不安全的封面值會被移除", () => {
     const bad = { ...work("x", null), cover: "javascript:alert(1)" };
     const r = parseBackup(JSON.stringify({ works: [bad] }), [], NOW);
@@ -110,9 +132,10 @@ describe("封面儲存", () => {
 
   it("localStorage 只存參照字串，100 部有封面的作品仍遠小於 Safari 5MB 上限", () => {
     const repo = new LocalStorageRepository("cover-size-test");
-    const works = Array.from({ length: 100 }, (_, i) => work(`w${i}`, `${COVER_REF_PREFIX}${"k".repeat(20)}${i}`));
+    const works = Array.from({ length: 100 }, (_, i) =>
+      work(`w${i}`, `${COVER_REF_PREFIX}${"k".repeat(20)}${i}`),
+    );
     repo.save(works);
     expect(window.localStorage.getItem("cover-size-test")!.length).toBeLessThan(200_000);
   });
 });
-

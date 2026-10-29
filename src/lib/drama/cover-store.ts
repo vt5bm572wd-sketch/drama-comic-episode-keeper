@@ -28,7 +28,8 @@ export interface CoverBlobStore {
 export const isCoverRef = (v: unknown): v is string =>
   typeof v === "string" && v.startsWith(COVER_REF_PREFIX) && v.length > COVER_REF_PREFIX.length;
 
-export const isInlineCover = (v: unknown): v is string => typeof v === "string" && /^data:image\//i.test(v);
+export const isInlineCover = (v: unknown): v is string =>
+  typeof v === "string" && /^data:image\//i.test(v);
 
 const refKey = (ref: string) => ref.slice(COVER_REF_PREFIX.length);
 
@@ -54,7 +55,11 @@ export function dataUrlToRecord(dataUrl: string, now = Date.now()): CoverRecord 
     bytes = new TextEncoder().encode(decodeURIComponent(body));
   }
   if (bytes.byteLength === 0) throw new Error("封面是空的");
-  return { data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, type, createdAt: now };
+  return {
+    data: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+    type,
+    createdAt: now,
+  };
 }
 
 export function recordToDataUrl(rec: CoverRecord): string {
@@ -105,7 +110,10 @@ export class IdbCoverStore implements CoverBlobStore {
     return this.dbPromise;
   }
 
-  private async run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  private async run<T>(
+    mode: IDBTransactionMode,
+    fn: (s: IDBObjectStore) => IDBRequest<T>,
+  ): Promise<T> {
     const db = await this.db();
     return new Promise<T>((resolve, reject) => {
       const tx = db.transaction(STORE, mode);
@@ -124,7 +132,10 @@ export class IdbCoverStore implements CoverBlobStore {
     await this.run("readwrite", (s) => s.put(rec, key));
   }
   get(key: string) {
-    return this.run<CoverRecord | undefined>("readonly", (s) => s.get(key) as IDBRequest<CoverRecord | undefined>);
+    return this.run<CoverRecord | undefined>(
+      "readonly",
+      (s) => s.get(key) as IDBRequest<CoverRecord | undefined>,
+    );
   }
   async delete(key: string) {
     await this.run("readwrite", (s) => s.delete(key));
@@ -169,7 +180,10 @@ function requestPersistentStorage() {
 
 /* ---------------- 讀寫 ---------------- */
 
-export async function saveCoverRecord(rec: Omit<CoverRecord, "createdAt">, store = getCoverStore()): Promise<string> {
+export async function saveCoverRecord(
+  rec: Omit<CoverRecord, "createdAt">,
+  store = getCoverStore(),
+): Promise<string> {
   if (!store) throw new Error("此瀏覽器不支援封面儲存");
   const key = newKey();
   await store.put(key, { ...rec, createdAt: Date.now() });
@@ -178,7 +192,10 @@ export async function saveCoverRecord(rec: Omit<CoverRecord, "createdAt">, store
 }
 
 export async function saveCoverBlob(blob: Blob, store = getCoverStore()): Promise<string> {
-  return saveCoverRecord({ data: await blob.arrayBuffer(), type: blob.type || "image/jpeg" }, store);
+  return saveCoverRecord(
+    { data: await blob.arrayBuffer(), type: blob.type || "image/jpeg" },
+    store,
+  );
 }
 
 const urlCache = new Map<string, string | null>();
@@ -223,7 +240,10 @@ export interface CoverChange {
 }
 
 /** 把作品中的 Base64 封面搬進 IndexedDB；單筆失敗就保留原值。 */
-export async function migrateInlineCovers(works: Work[], store: CoverBlobStore): Promise<CoverChange[]> {
+export async function migrateInlineCovers(
+  works: Work[],
+  store: CoverBlobStore,
+): Promise<CoverChange[]> {
   const changes: CoverChange[] = [];
   const done = new Map<string, string>();
   for (const w of works) {
@@ -247,8 +267,15 @@ export async function migrateInlineCovers(works: Work[], store: CoverBlobStore):
 }
 
 /** 刪除沒有任何作品使用、且建立超過 minAgeMs 的封面（避免誤刪還在表單中的新封面）。 */
-export async function gcCovers(works: Work[], store: CoverBlobStore, now = Date.now(), minAgeMs = DAY_MS) {
-  const used = new Set(works.filter((w) => isCoverRef(w.cover)).map((w) => refKey(w.cover as string)));
+export async function gcCovers(
+  works: Work[],
+  store: CoverBlobStore,
+  now = Date.now(),
+  minAgeMs = DAY_MS,
+) {
+  const used = new Set(
+    works.filter((w) => isCoverRef(w.cover)).map((w) => refKey(w.cover as string)),
+  );
   let removed = 0;
   for (const key of await store.keys()) {
     if (used.has(key)) continue;
@@ -261,12 +288,24 @@ export async function gcCovers(works: Work[], store: CoverBlobStore, now = Date.
 }
 
 /** 匯出備份用：把 IndexedDB 封面還原成 Base64，讓備份檔可在其他裝置使用。 */
-export async function inlineCoversForBackup(works: Work[], store = getCoverStore()): Promise<Work[]> {
+export async function inlineCoversForBackup(
+  works: Work[],
+  store = getCoverStore(),
+): Promise<Work[]> {
   return Promise.all(
     works.map(async (w) => {
-      if (!isCoverRef(w.cover)) return w;
-      const rec = store ? await store.get(refKey(w.cover)).catch(() => undefined) : undefined;
-      return { ...w, cover: rec ? recordToDataUrl(rec) : null };
+      const inline = async (cover: string | null | undefined) => {
+        if (!isCoverRef(cover)) return cover;
+        const rec = store ? await store.get(refKey(cover)).catch(() => undefined) : undefined;
+        return rec ? recordToDataUrl(rec) : null;
+      };
+      return {
+        ...w,
+        cover: await inline(w.cover),
+        seasons: await Promise.all(
+          w.seasons.map(async (season) => ({ ...season, cover: await inline(season.cover) })),
+        ),
+      };
     }),
   );
 }
@@ -275,19 +314,24 @@ export async function inlineCoversForBackup(works: Work[], store = getCoverStore
 export async function externalizeCovers(works: Work[], store = getCoverStore()): Promise<Work[]> {
   const out: Work[] = [];
   for (const w of works) {
-    if (!isSafeCover(w.cover)) {
-      out.push(w.cover === null ? w : { ...w, cover: null });
-      continue;
-    }
-    if (isInlineCover(w.cover) && store) {
+    const externalize = async (cover: string | null | undefined) => {
+      if (cover == null) return cover;
+      if (!isSafeCover(cover)) return null;
+      if (!isInlineCover(cover) || !store) return cover;
       try {
-        out.push({ ...w, cover: await saveCoverRecord(dataUrlToRecord(w.cover), store) });
-        continue;
+        return await saveCoverRecord(dataUrlToRecord(cover), store);
       } catch (e) {
         console.error("cover import failed", w.id, e);
+        return cover;
       }
-    }
-    out.push(w);
+    };
+    out.push({
+      ...w,
+      cover: await externalize(w.cover),
+      seasons: await Promise.all(
+        w.seasons.map(async (season) => ({ ...season, cover: await externalize(season.cover) })),
+      ),
+    });
   }
   return out;
 }
@@ -305,4 +349,3 @@ export async function runCoverMaintenance(
   // 資料讀取異常（空清單）時不清理，避免誤刪
   if (works.length > 0) await gcCovers(works, store);
 }
-

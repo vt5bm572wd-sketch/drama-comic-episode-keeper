@@ -4,16 +4,42 @@ import { validUpdateDate, clampEpisode, normalizeTitle, uid } from "./domain";
 import { hongguoDetailUrl, isValidSeriesId } from "./link-import";
 import type { BackupFile, CustomCategory, Work } from "./types";
 
-const watchStatus = z.enum(["waiting", "want", "watching", "completed", "paused", "dropped"]);
+const watchStatus = z.enum([
+  "unwatched",
+  "pending",
+  "waiting",
+  "want",
+  "watching",
+  "completed",
+  "paused",
+  "dropped",
+]);
+const sourceSchema = z.object({
+  platform: z.literal("hongguo"),
+  seriesId: z.string().refine(isValidSeriesId, "作品 ID 應為 6 至 25 位數字"),
+  url: z.string().max(500).optional(),
+  linkedAt: z.string().optional(),
+});
 
 const seasonSchema = z.object({
   id: z.string().min(1).optional(),
   number: z.number().int().min(1),
   originTitle: z.string().optional(),
+  title: z.string().optional(),
+  originalTitle: z.string().optional(),
+  synopsis: z.string().optional(),
+  originalSynopsis: z.string().optional(),
+  cover: z.string().nullable().optional(),
+  source: sourceSchema.optional(),
+  sources: z.array(sourceSchema).optional(),
+  specialType: z.enum(["extra", "special"]).nullable().optional(),
+  rating: z.number().min(0).max(5).optional(),
+  updateDate: z.string().nullable().optional(),
   totalEpisodes: z.number().int().min(0).max(10000),
   currentEpisodes: z.number().int().min(0).max(10000).optional(),
   watchedEpisodes: z.number().int().min(0),
   status: watchStatus.default("want"),
+  statusMode: z.enum(["auto", "manual"]).optional(),
   note: z.string().default(""),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
@@ -22,6 +48,9 @@ const seasonSchema = z.object({
 const workSchema = z.object({
   id: z.string().min(1).optional(),
   title: z.string().trim().min(1, "缺少劇名").max(200),
+  originalTitle: z.string().optional(),
+  originalSynopsis: z.string().optional(),
+  seriesKey: z.string().optional(),
   aliases: z.array(z.string()).default([]),
   cover: z
     .string()
@@ -38,6 +67,7 @@ const workSchema = z.object({
   tags: z.array(z.string()).default([]),
   collectStatus: z.enum(["favorite", "collected", "archived"]).default("collected"),
   watchStatus: watchStatus.default("want"),
+  watchStatusMode: z.enum(["auto", "manual"]).optional(),
   rating: z.number().min(0).max(5).default(0),
   note: z.string().default(""),
   seasons: z.array(seasonSchema).min(1, "至少需要一季"),
@@ -46,14 +76,7 @@ const workSchema = z.object({
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
   lastWatchedAt: z.string().nullable().default(null),
-  source: z
-    .object({
-      platform: z.literal("hongguo"),
-      seriesId: z.string().refine(isValidSeriesId, "作品 ID 應為 6 至 25 位數字"),
-      url: z.string().max(500).optional(),
-      linkedAt: z.string().optional(),
-    })
-    .optional(),
+  source: sourceSchema.optional(),
 });
 
 export function createBackup(
@@ -61,7 +84,7 @@ export function createBackup(
   now = new Date().toISOString(),
   customCategories: CustomCategory[] = [],
 ): BackupFile {
-  return { app: "NINA DRAMA", version: 1, exportedAt: now, works, customCategories };
+  return { app: "NINA DRAMA", version: 2, exportedAt: now, works, customCategories };
 }
 
 export interface ImportPreview {
@@ -98,7 +121,11 @@ export function parseBackup(
   const existingIds = new Set(existing.map((w) => w.id));
   const existingTitles = new Map(existing.map((w) => [normalizeTitle(w.title), w.title]));
   const existingSeries = new Map(
-    existing.flatMap((w) => (w.source ? [[w.source.seriesId, w.title] as const] : [])),
+    existing.flatMap((w) =>
+      [w.source, ...w.seasons.map((s) => s.source)]
+        .filter((s): s is NonNullable<typeof s> => !!s)
+        .map((s) => [s.seriesId, w.title] as const),
+    ),
   );
   const seenIds = new Set<string>();
   const seenTitles = new Set<string>();
@@ -140,10 +167,35 @@ export function parseBackup(
       id: s.id ?? uid("s"),
       number: s.number,
       originTitle: s.originTitle,
+      title: s.title,
+      originalTitle: s.originalTitle,
+      synopsis: s.synopsis,
+      originalSynopsis: s.originalSynopsis,
+      ...(s.cover === undefined ? {} : { cover: isSafeCover(s.cover) ? s.cover : null }),
+      ...(s.source
+        ? {
+            source: {
+              platform: "hongguo" as const,
+              seriesId: s.source.seriesId,
+              url: hongguoDetailUrl(s.source.seriesId),
+              linkedAt: s.source.linkedAt ?? now,
+            },
+          }
+        : {}),
+      sources: s.sources?.map((item) => ({
+        platform: "hongguo" as const,
+        seriesId: item.seriesId,
+        url: hongguoDetailUrl(item.seriesId),
+        linkedAt: item.linkedAt ?? now,
+      })),
+      specialType: s.specialType ?? null,
+      rating: s.rating,
+      updateDate: s.updateDate ?? null,
       totalEpisodes: s.totalEpisodes,
       currentEpisodes: s.currentEpisodes ?? s.totalEpisodes,
       watchedEpisodes: clampEpisode(s.watchedEpisodes, s.currentEpisodes ?? s.totalEpisodes),
       status: s.status,
+      statusMode: s.statusMode,
       note: s.note,
       createdAt: s.createdAt ?? now,
       updatedAt: s.updatedAt ?? now,
@@ -173,7 +225,10 @@ export function parseBackup(
     };
 
     const key = normalizeTitle(work.title);
-    const series = work.source?.seriesId;
+    const sourceIds = [work.source, ...work.seasons.map((s) => s.source)]
+      .filter((s): s is NonNullable<typeof s> => !!s)
+      .map((s) => s.seriesId);
+    const series = sourceIds[0];
     if (existingIds.has(work.id)) {
       preview.duplicates.push({ work, reason: "與現有作品 ID 相同" });
     } else if (series && existingSeries.has(series)) {
@@ -190,7 +245,7 @@ export function parseBackup(
     }
     seenIds.add(work.id);
     seenTitles.add(key);
-    if (series) seenSeries.add(series);
+    for (const id of sourceIds) seenSeries.add(id);
   });
 
   return { ok: true, preview };

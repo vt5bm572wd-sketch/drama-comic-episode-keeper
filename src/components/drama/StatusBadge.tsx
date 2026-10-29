@@ -8,6 +8,8 @@ const statusVariants = cva(
   {
     variants: {
       status: {
+        unwatched: "bg-status-want/15 text-status-want",
+        pending: "bg-status-want/15 text-status-want",
         waiting: "bg-status-watching/15 text-status-watching",
         want: "bg-status-want/15 text-status-want",
         watching: "bg-status-watching/15 text-status-watching",

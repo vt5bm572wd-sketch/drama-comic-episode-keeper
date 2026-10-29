@@ -10,6 +10,8 @@ export function uid(prefix = "w"): string {
   return `${prefix}_${rand}`;
 }
 
+/* ---------- 集數與進度 ---------- */
+
 export function clampEpisode(value: number, total: number): number {
   const safeTotal = Math.max(0, Math.floor(Number.isFinite(total) ? total : 0));
   const v = Math.floor(Number.isFinite(value) ? value : 0);
@@ -43,6 +45,51 @@ export function currentSeason(work: Work): Season | undefined {
   return work.seasons.find((s) => s.id === work.currentSeasonId) ?? sortSeasons(work.seasons)[0];
 }
 
+const SPECIAL_MANUAL_STATUSES = new Set<WatchStatus>(["want", "paused", "dropped", "waiting"]);
+
+export function deriveSeasonStatus(
+  season: Season,
+  newSeason = false,
+  seriesCompleted = false,
+): WatchStatus {
+  if (season.statusMode === "manual" && SPECIAL_MANUAL_STATUSES.has(season.status)) {
+    return season.status;
+  }
+  if (season.watchedEpisodes <= 0) return newSeason ? "pending" : "unwatched";
+  const available = availableEpisodes(season);
+  if (available > 0 && season.watchedEpisodes >= available) {
+    return seriesCompleted &&
+      season.totalEpisodes > 0 &&
+      season.watchedEpisodes >= season.totalEpisodes
+      ? "completed"
+      : "waiting";
+  }
+  return "watching";
+}
+
+/** 依各季進度推導系列狀態；暫停、棄劇、想看等手動覆寫仍保留。 */
+export function recalculateWorkStatus(work: Work): Work {
+  if (
+    work.watchStatusMode === "manual" &&
+    (work.watchStatus === "paused" || work.watchStatus === "dropped")
+  ) {
+    return work;
+  }
+  const statuses = work.seasons.map((s) => s.status);
+  let watchStatus: WatchStatus;
+  if (statuses.includes("pending")) watchStatus = "pending";
+  else if (statuses.includes("watching")) watchStatus = "watching";
+  else if (statuses.includes("waiting")) watchStatus = "waiting";
+  else if (statuses.every((s) => s === "unwatched" || s === "want")) watchStatus = "unwatched";
+  else if (statuses.length > 0 && statuses.every((s) => s === "completed")) {
+    watchStatus = work.seriesStatus === "completed" ? "completed" : "waiting";
+  } else if (statuses.includes("paused")) watchStatus = "paused";
+  else if (statuses.includes("dropped")) watchStatus = "dropped";
+  else watchStatus = "unwatched";
+  return { ...work, watchStatus, watchStatusMode: "auto" };
+}
+
+/** 設定某季已觀看集數（自動限制在 0 ～ 總集數）。 */
 export function setSeasonProgress(
   work: Work,
   seasonId: string,
@@ -53,16 +100,26 @@ export function setSeasonProgress(
   if (!target) return work;
   const value = clampEpisode(watched, availableEpisodes(target));
   if (value === target.watchedEpisodes) return work;
-  const seasons = work.seasons.map((s) =>
-    s.id === seasonId ? { ...s, watchedEpisodes: value, updatedAt: now } : s,
-  );
-  return {
+  const seasons = work.seasons.map((s) => {
+    if (s.id !== seasonId) return s;
+    const changed = { ...s, watchedEpisodes: value, updatedAt: now, statusMode: "auto" as const };
+    return {
+      ...changed,
+      status: deriveSeasonStatus(changed, false, work.seriesStatus === "completed"),
+    };
+  });
+  return recalculateWorkStatus({
     ...work,
+    watchStatusMode:
+      work.watchStatusMode === "manual" &&
+      (work.watchStatus === "paused" || work.watchStatus === "dropped")
+        ? "manual"
+        : "auto",
     seasons,
     currentSeasonId: seasonId,
     lastWatchedAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 export function stepEpisode(
@@ -76,37 +133,113 @@ export function stepEpisode(
   return setSeasonProgress(work, seasonId, target.watchedEpisodes + delta, now);
 }
 
+/* ---------- 季數管理 ---------- */
+
 export type SeasonInput = { [K in keyof Season]?: Season[K] | undefined } & { number: number };
 
 export function makeSeason(partial: SeasonInput, now: string): Season {
   const total = Math.max(0, Math.floor(partial.totalEpisodes ?? 0));
-  return {
+  const season: Season = {
     id: partial.id ?? uid("s"),
     number: partial.number,
     originTitle: partial.originTitle,
+    title: partial.title,
+    originalTitle: partial.originalTitle,
+    synopsis: partial.synopsis,
+    originalSynopsis: partial.originalSynopsis,
+    cover: partial.cover,
+    source: partial.source,
+    rating: partial.rating,
+    updateDate: partial.updateDate ?? null,
     totalEpisodes: total,
     currentEpisodes: partial.currentEpisodes ?? total,
     watchedEpisodes: clampEpisode(partial.watchedEpisodes ?? 0, partial.currentEpisodes ?? total),
-    status: partial.status ?? "want",
+    status: partial.status ?? "unwatched",
+    statusMode: partial.statusMode ?? "auto",
     note: partial.note ?? "",
     createdAt: partial.createdAt ?? now,
     updatedAt: partial.updatedAt ?? now,
   };
+  return { ...season, status: deriveSeasonStatus(season, partial.status === "pending") };
 }
 
 export function nextSeasonNumber(work: Pick<Work, "seasons">): number {
   return work.seasons.reduce((m, s) => Math.max(m, s.number), 0) + 1;
 }
 
-export function mergeIntoSeries(target: Work, source: Work, now = new Date().toISOString()): Work {
+/**
+ * 把 source 作品的所有季數移到 target 系列底下。
+ * 季數接在 target 最大季數之後，觀看進度、狀態、備註全部保留。
+ */
+export function mergeIntoSeries(
+  target: Work,
+  source: Work,
+  now = new Date().toISOString(),
+  mergeSameSeason = false,
+): Work {
   if (target.id === source.id) return target;
   let next = nextSeasonNumber(target);
-  const moved = sortSeasons(source.seasons).map((s) => ({
-    ...s,
-    number: next++,
-    originTitle: s.originTitle ?? source.title,
-    updatedAt: now,
-  }));
+  const used = new Set(target.seasons.map((s) => s.number));
+  const appended: Season[] = [];
+  const mergedExisting = target.seasons.map((existing) => {
+    const same = mergeSameSeason
+      ? source.seasons.find(
+          (candidate) =>
+            candidate.number === existing.number &&
+            (candidate.specialType ?? null) === (existing.specialType ?? null),
+        )
+      : undefined;
+    if (!same) return existing;
+    const newer = Date.parse(same.updatedAt) > Date.parse(existing.updatedAt) ? same : existing;
+    const sources = Array.from(
+      new Map(
+        [existing.source, ...(existing.sources ?? []), same.source, ...(same.sources ?? [])]
+          .filter((x): x is NonNullable<typeof x> => !!x)
+          .map((x) => [x.seriesId, x]),
+      ).values(),
+    );
+    return {
+      ...existing,
+      watchedEpisodes: newer.watchedEpisodes,
+      status: newer.status,
+      statusMode: newer.statusMode,
+      rating: newer.rating ?? existing.rating,
+      note: [existing.note, same.note]
+        .filter(Boolean)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .join("\n\n"),
+      source: existing.source ?? same.source,
+      sources,
+      updatedAt: now,
+    };
+  });
+  const moved = sortSeasons(source.seasons)
+    .filter(
+      (s) =>
+        !mergeSameSeason ||
+        !target.seasons.some(
+          (existing) =>
+            existing.number === s.number &&
+            (existing.specialType ?? null) === (s.specialType ?? null),
+        ),
+    )
+    .map((s) => {
+      const number = s.specialType ? s.number : used.has(s.number) ? next++ : s.number;
+      used.add(number);
+      const movedSeason = {
+        ...s,
+        number,
+        originTitle: s.originTitle ?? source.title,
+        statusMode: "auto" as const,
+        updatedAt: now,
+      };
+      const result = {
+        ...movedSeason,
+        status: deriveSeasonStatus(movedSeason, s.watchedEpisodes === 0),
+      };
+      appended.push(result);
+      return result;
+    });
   const aliases = Array.from(
     new Set(
       [...target.aliases, source.title, ...source.aliases].filter((a) => a && a !== target.title),
@@ -114,10 +247,11 @@ export function mergeIntoSeries(target: Work, source: Work, now = new Date().toI
   );
   const lastWatchedAt =
     [target.lastWatchedAt, source.lastWatchedAt].filter(Boolean).sort().at(-1) ?? null;
-  return {
+  return recalculateWorkStatus({
     ...target,
     aliases,
-    seasons: [...target.seasons, ...moved],
+    seasons: [...mergedExisting, ...moved],
+    currentSeasonId: target.currentSeasonId ?? appended[0]?.id ?? null,
     actors: Array.from(new Set([...target.actors, ...source.actors])),
     categories: Array.from(new Set([...target.categories, ...source.categories])),
     tags: Array.from(new Set([...target.tags, ...source.tags])),
@@ -127,8 +261,12 @@ export function mergeIntoSeries(target: Work, source: Work, now = new Date().toI
     updateDate: [target.updateDate, source.updateDate].filter(Boolean).sort().at(-1) ?? null,
     lastWatchedAt,
     updatedAt: now,
-  };
+    watchStatus: moved.some((s) => s.watchedEpisodes === 0) ? "pending" : target.watchStatus,
+    watchStatusMode: "auto",
+  });
 }
+
+/* ---------- 統計 ---------- */
 
 export interface Stats {
   total: number;
@@ -153,6 +291,8 @@ export function topCategories(works: Work[], limit = 8): { name: string; count: 
     .slice(0, limit);
 }
 
+/* ---------- 搜尋、篩選、排序 ---------- */
+
 function norm(s: string): string {
   return s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
 }
@@ -162,15 +302,24 @@ export function matchesQuery(work: Work, query: string): boolean {
   if (!q) return true;
   const haystack = [
     work.title,
+    work.originalTitle ?? "",
     ...work.aliases,
     ...work.categories,
     ...work.tags,
     work.synopsis,
+    work.originalSynopsis ?? "",
     work.source?.seriesId ?? "",
+    ...work.seasons.flatMap((season) => [
+      season.title ?? "",
+      season.originalTitle ?? "",
+      season.originTitle ?? "",
+      season.source?.seriesId ?? "",
+    ]),
   ];
   return haystack.some((field) => norm(field).includes(q));
 }
 
+/** 關鍵字搜尋；貼上作品網址或分享文字時改用作品 ID 精確比對。 */
 export function searchWorks(works: Work[], query: string): Work[] {
   if (!norm(query)) return [];
   const link = parseWorkLink(query);
@@ -221,6 +370,8 @@ export function recentlyAdded(works: Work[], limit = 10): Work[] {
   return [...works].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
 }
 
+/* ---------- 文字欄位工具 ---------- */
+
 export function splitList(input: string): string[] {
   return Array.from(
     new Set(
@@ -233,9 +384,13 @@ export function splitList(input: string): string[] {
 }
 
 export function normalizeTitle(title: string): string {
-  return norm(title).replace(/[《》「」『』"'（）()【】\[\]]/g, "");
+  return norm(title)
+    .replace(/[《》「」『』"'（）()【】]/g, "")
+    .replaceAll("[", "")
+    .replaceAll("]", "");
 }
 
+/** 純衍生提示，絕不寫回個人手動追劇狀態。 */
 export function progressHint(work: Work): string {
   const { watched, total } = workTotals(work);
   const unread = Math.max(total - watched, 0);
@@ -246,18 +401,25 @@ export function progressHint(work: Work): string {
 }
 
 export function migrateWork(work: Work): Work {
-  return {
+  const migrated: Work = {
     ...work,
     updateDate: work.updateDate ?? null,
     seriesStatus: work.seriesStatus ?? "pending",
     watchStatus: work.watchStatus ?? "want",
+    watchStatusMode: work.watchStatusMode ?? "manual",
+    originalTitle: work.originalTitle,
+    originalSynopsis: work.originalSynopsis,
+    seriesKey: work.seriesKey,
     customCategories: work.customCategories ?? [],
-    seasons: work.seasons.map((s) => ({
+    seasons: work.seasons.map((s, index) => ({
       ...s,
       currentEpisodes: s.currentEpisodes ?? s.totalEpisodes,
       watchedEpisodes: s.watchedEpisodes ?? 0,
+      statusMode: s.statusMode ?? "manual",
+      ...(s.source || !work.source || index !== 0 ? {} : { source: work.source }),
     })),
   };
+  return migrated;
 }
 
 export function validUpdateDate(value: string): boolean {

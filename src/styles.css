@@ -110,7 +110,8 @@
   --status-dropped: oklch(0.68 0.09 25);
 
   --shadow-card-value: 0 1px 0 0 oklch(1 0 0 / 4%) inset, 0 10px 30px -14px oklch(0 0 0 / 70%);
-  --shadow-float-value: 0 12px 32px -8px oklch(0.55 0.1 300 / 45%), 0 4px 12px -4px oklch(0 0 0 / 60%);
+  --shadow-float-value:
+    0 12px 32px -8px oklch(0.55 0.1 300 / 45%), 0 4px 12px -4px oklch(0 0 0 / 60%);
   --shadow-poster-value: 0 18px 40px -18px oklch(0 0 0 / 85%);
 
   --gradient-poster-fade: linear-gradient(
@@ -148,13 +149,10 @@
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
-    text-rendering: optimizeLegibility;
   }
 
   body {
     background-color: var(--color-background);
-    background-image: var(--gradient-hero-glow);
-    background-repeat: no-repeat;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     overflow-x: hidden;
@@ -166,23 +164,13 @@
   select {
     font-size: 16px;
   }
-
-  /* Lovable may inject an editor badge into published previews. Hide it when
-     it is represented in the document DOM; production content itself does not
-     depend on these elements. */
-  iframe[src*="lovable.dev"],
-  iframe[src*="lovable.app"][title*="Lovable"],
-  [data-lovable-badge],
-  [data-testid*="lovable" i],
-  [class*="lovable-badge" i],
-  [id*="lovable-badge" i] {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
 }
 
-/* iPhone 安全區域 */
+.home-ambient {
+  background-image: var(--gradient-hero-glow);
+  background-repeat: no-repeat;
+}
+
 @utility pt-safe {
   padding-top: clamp(0.75rem, env(safe-area-inset-top), 3rem);
 }
@@ -225,4 +213,88 @@
   font-family: var(--font-display);
   font-weight: 600;
   letter-spacing: 0.32em;
+}
+
+main > div.relative > .pt-safe.absolute.inset-x-0.top-0,
+main > div.relative > .absolute.inset-x-0.bottom-0 {
+  z-index: 20;
+  isolation: isolate;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+}
+
+.page-header-clear,
+.page-header-clear * {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.page-header-clear {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+form > div:has(#update-date) {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  overflow: hidden !important;
+}
+
+#update-date {
+  display: block !important;
+  inline-size: 100% !important;
+  width: 100% !important;
+  min-inline-size: 0 !important;
+  min-width: 0 !important;
+  max-inline-size: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding-inline: 0.75rem !important;
+  overflow: hidden !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  text-align: center !important;
+}
+
+#update-date::-webkit-date-and-time-value {
+  inline-size: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  text-align: center !important;
+}
+
+#update-date::-webkit-calendar-picker-indicator {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+@media (display-mode: standalone) {
+  html,
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-background);
+  }
+
+  .page-header-clear {
+    padding-top: calc(env(safe-area-inset-top) + 1rem) !important;
+  }
+
+  .pt-safe {
+    padding-top: calc(env(safe-area-inset-top) + 0.75rem) !important;
+  }
+
+  .nav-bar {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
 }

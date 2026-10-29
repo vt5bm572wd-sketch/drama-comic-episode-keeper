@@ -20,7 +20,15 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
-export function OnlineSearchResults({ query, works }: { query: string; works: Work[] }) {
+export function OnlineSearchResults({
+  query,
+  works,
+  excludeOwned = false,
+}: {
+  query: string;
+  works: Work[];
+  excludeOwned?: boolean;
+}) {
   const q = useDebounced(query.trim(), 450);
   const search = useServerFn(searchHongguo);
   const result = useInfiniteQuery({
@@ -49,7 +57,10 @@ export function OnlineSearchResults({ query, works }: { query: string; works: Wo
   if (result.isPending || q !== query.trim()) return <LoadingBlock />;
   if (result.isError) {
     return (
-      <div role="alert" className="space-y-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+      <div
+        role="alert"
+        className="space-y-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+      >
         <p className="flex gap-2">
           <AlertCircle className="mt-0.5 size-4 shrink-0" />
           {result.error.message}
@@ -62,16 +73,27 @@ export function OnlineSearchResults({ query, works }: { query: string; works: Wo
   }
 
   const seen = new Set<string>();
-  const items = result.data.pages.flatMap((p) => p.items).filter((w) => !seen.has(w.seriesId) && seen.add(w.seriesId));
+  const items = result.data.pages
+    .flatMap((p) => p.items)
+    .filter((w) => !seen.has(w.seriesId) && seen.add(w.seriesId))
+    .filter((w) => !excludeOwned || !findWorkBySeriesId(works, w.seriesId));
   const total = result.data.pages[0]?.total ?? items.length;
 
   if (items.length === 0) {
-    return <EmptyState icon={SearchX} title="紅果短劇上找不到" description={`官方網站沒有符合「${query}」的作品。`} />;
+    return (
+      <EmptyState
+        icon={SearchX}
+        title="沒有其他線上結果"
+        description={`找不到新的「${query}」作品；與收藏完全相同的來源已自動去重。`}
+      />
+    );
   }
 
   return (
     <>
-      <p className="mb-3 text-xs text-subtle-foreground">紅果短劇官方網站約 {total} 部作品 · 資料為簡體中文</p>
+      <p className="mb-3 text-xs text-subtle-foreground">
+        紅果短劇官方網站約 {total} 部作品 · 收藏時自動轉為台灣繁體
+      </p>
       <div className="space-y-3">
         {items.map((w) => (
           <OnlineWorkRow key={w.seriesId} work={w} owned={findWorkBySeriesId(works, w.seriesId)} />
@@ -111,7 +133,9 @@ function OnlineWorkRow({ work, owned }: { work: OnlineWork; owned: Work | undefi
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col py-0.5">
-        <h3 className="line-clamp-2 font-serif text-base font-semibold leading-snug">{work.title}</h3>
+        <h3 className="line-clamp-2 font-serif text-base font-semibold leading-snug">
+          {work.title}
+        </h3>
         <p className="mt-1 text-xs text-subtle-foreground">
           {work.totalEpisodes ? `全 ${work.totalEpisodes} 集` : ""}
           {work.heat ? ` · ${work.heat}` : ""}
@@ -119,13 +143,18 @@ function OnlineWorkRow({ work, owned }: { work: OnlineWork; owned: Work | undefi
         {work.tags.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {work.tags.slice(0, 4).map((t) => (
-              <span key={t} className="rounded bg-elevated px-1.5 py-px text-[10px] text-muted-foreground">
+              <span
+                key={t}
+                className="rounded bg-elevated px-1.5 py-px text-[10px] text-muted-foreground"
+              >
                 {t}
               </span>
             ))}
           </div>
         )}
-        {work.synopsis && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{work.synopsis}</p>}
+        {work.synopsis && (
+          <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{work.synopsis}</p>
+        )}
         <div className="mt-auto pt-2">
           {owned ? (
             <Button asChild size="sm" variant="secondary">
@@ -147,4 +176,3 @@ function OnlineWorkRow({ work, owned }: { work: OnlineWork; owned: Work | undefi
     </div>
   );
 }
-
