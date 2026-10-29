@@ -113,27 +113,22 @@ export type SeriesMatch =
 
 export function findSeriesMatch(works: Work[], incoming: Work): SeriesMatch {
   const season = incoming.seasons[0];
-  const identity = parseSeriesIdentity(
-    season?.title ??
-      season?.originTitle ??
-      incoming.title ??
-      season?.originalTitle ??
-      incoming.originalTitle,
-  );
-  if (!identity.explicitSeason) return { kind: "none", identity };
-  // Match by the exact normalized base title, not a source ID or fuzzy similarity.
-  // Legacy seriesKey may contain an unnormalized title, so derive it afresh.
+  // The form displays a base title but the imported season keeps the full sequel title.
+  // Check all title fields so a missing season.title cannot silently discard "2".
+  const candidates = [season?.title, season?.originTitle, season?.originalTitle,
+    incoming.originalTitle, incoming.title].filter((value): value is string => !!value);
+  const identity = candidates.map(parseSeriesIdentity).find((item) => item.explicitSeason)
+    ?? parseSeriesIdentity(incoming.title);
+  if (!identity.explicitSeason || !identity.seasonNumber) return { kind: "none", identity };
   const exact = works.find((work) =>
     [work.title, work.originalTitle, work.seriesKey, ...work.aliases].some(
       (title) => title && parseSeriesIdentity(title).key === identity.key,
     ),
   );
-  if (
-    exact &&
-    identity.seasonNumber &&
-    !exact.seasons.some((s) => s.number === identity.seasonNumber)
-  ) {
-    return { kind: "confirmed", identity, target: exact };
+  if (exact) {
+    return exact.seasons.some((s) => s.number === identity.seasonNumber)
+      ? { kind: "possible", identity, target: exact }
+      : { kind: "confirmed", identity, target: exact };
   }
   return { kind: "none", identity };
 }
