@@ -57,7 +57,6 @@ function AddPage() {
   const [source, setSource] = useState<WorkSource | null>(null);
   const [prefill, setPrefill] = useState<WorkPrefill | null>(null);
   const [possible, setPossible] = useState<{ incoming: Work; target: Work } | null>(null);
-  const [formMode, setFormMode] = useState<"simple" | "advanced">("simple");
 
   const applyTitle = (title: string, force: boolean) => {
     const traditional = toTaiwanTraditional(title);
@@ -148,25 +147,8 @@ function AddPage() {
         </p>
       </section>
 
-      <div className="mx-5 mb-6 grid grid-cols-2 rounded-xl bg-muted p-1" aria-label="新增模式">
-        {(["simple", "advanced"] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={formMode === item}
-            onClick={() => setFormMode(item)}
-            className={cn(
-              "h-10 rounded-lg text-sm font-medium transition-colors",
-              formMode === item ? "bg-card text-foreground shadow-sm" : "text-muted-foreground",
-            )}
-          >
-            {item === "simple" ? "簡易模式" : "進階模式"}
-          </button>
-        ))}
-      </div>
-
       <WorkForm
-        mode={formMode}
+        mode="advanced"
         submitLabel="保存作品"
         source={source}
         prefill={prefill}
