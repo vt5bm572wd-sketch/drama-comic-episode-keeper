@@ -45,7 +45,7 @@ export function currentSeason(work: Work): Season | undefined {
   return work.seasons.find((s) => s.id === work.currentSeasonId) ?? sortSeasons(work.seasons)[0];
 }
 
-const SPECIAL_MANUAL_STATUSES = new Set<WatchStatus>(["want", "paused", "dropped", "waiting"]);
+const SPECIAL_MANUAL_STATUSES = new Set<WatchStatus>(["paused", "dropped", "waiting"]);
 
 export function deriveSeasonStatus(
   season: Season,
@@ -67,7 +67,7 @@ export function deriveSeasonStatus(
   return "watching";
 }
 
-/** 依各季進度推導系列狀態；暫停、棄劇、想看等手動覆寫仍保留。 */
+/** 依各季進度推導系列狀態；暫停、棄劇與等更新等手動覆寫仍保留。 */
 export function recalculateWorkStatus(work: Work): Work {
   if (
     work.watchStatusMode === "manual" &&
@@ -75,12 +75,12 @@ export function recalculateWorkStatus(work: Work): Work {
   ) {
     return work;
   }
-  const statuses = work.seasons.map((s) => s.status);
+  const statuses = work.seasons.map((s) => (s.status === "want" ? "unwatched" : s.status));
   let watchStatus: WatchStatus;
   if (statuses.includes("pending")) watchStatus = "pending";
   else if (statuses.includes("watching")) watchStatus = "watching";
   else if (statuses.includes("waiting")) watchStatus = "waiting";
-  else if (statuses.every((s) => s === "unwatched" || s === "want")) watchStatus = "unwatched";
+  else if (statuses.every((s) => s === "unwatched")) watchStatus = "unwatched";
   else if (statuses.length > 0 && statuses.every((s) => s === "completed")) {
     watchStatus = work.seriesStatus === "completed" ? "completed" : "waiting";
   } else if (statuses.includes("paused")) watchStatus = "paused";
@@ -154,7 +154,7 @@ export function makeSeason(partial: SeasonInput, now: string): Season {
     totalEpisodes: total,
     currentEpisodes: partial.currentEpisodes ?? total,
     watchedEpisodes: clampEpisode(partial.watchedEpisodes ?? 0, partial.currentEpisodes ?? total),
-    status: partial.status ?? "unwatched",
+    status: partial.status === "want" ? "unwatched" : (partial.status ?? "unwatched"),
     statusMode: partial.statusMode ?? "auto",
     note: partial.note ?? "",
     createdAt: partial.createdAt ?? now,
@@ -201,7 +201,7 @@ export function mergeIntoSeries(
     return {
       ...existing,
       watchedEpisodes: newer.watchedEpisodes,
-      status: newer.status,
+      status: newer.status === "want" ? "unwatched" : newer.status,
       statusMode: newer.statusMode,
       rating: newer.rating ?? existing.rating,
       note: [existing.note, same.note]
@@ -230,6 +230,7 @@ export function mergeIntoSeries(
         ...s,
         number,
         originTitle: s.originTitle ?? source.title,
+        status: s.status === "want" ? ("unwatched" as const) : s.status,
         statusMode: "auto" as const,
         updatedAt: now,
       };
@@ -405,7 +406,7 @@ export function migrateWork(work: Work): Work {
     ...work,
     updateDate: work.updateDate ?? null,
     seriesStatus: work.seriesStatus ?? "pending",
-    watchStatus: work.watchStatus ?? "want",
+    watchStatus: !work.watchStatus || work.watchStatus === "want" ? "unwatched" : work.watchStatus,
     watchStatusMode: work.watchStatusMode ?? "manual",
     originalTitle: work.originalTitle,
     originalSynopsis: work.originalSynopsis,
@@ -415,6 +416,7 @@ export function migrateWork(work: Work): Work {
       ...s,
       currentEpisodes: s.currentEpisodes ?? s.totalEpisodes,
       watchedEpisodes: s.watchedEpisodes ?? 0,
+      status: !s.status || s.status === "want" ? "unwatched" : s.status,
       statusMode: s.statusMode ?? "manual",
       ...(s.source || !work.source || index !== 0 ? {} : { source: work.source }),
     })),
