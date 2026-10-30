@@ -64,6 +64,6 @@ export type AiMemoryServerResult =
     }
   | {
       ok: false;
-      code: "insufficient_source" | "missing_api_key" | "provider_unavailable";
+      code: "insufficient_source" | "missing_api_key" | "provider_unavailable" | "rate_limited";
       message: string;
     };
