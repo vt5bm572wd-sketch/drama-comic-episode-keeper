@@ -58,9 +58,17 @@ export function PosterCard({
   );
 }
 
+function formatLastWatched(value?: string) {
+  if (!value) return "尚無觀看紀錄";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "已有觀看紀錄";
+  return `最後觀看 ${new Intl.DateTimeFormat("zh-TW", { month: "numeric", day: "numeric" }).format(date)}`;
+}
+
 export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boolean }) {
   const season = currentSeason(work);
   const totals = workTotals(work);
+  const unread = Math.max(0, totals.total - totals.watched);
 
   return (
     <div className="surface p-3">
@@ -95,7 +103,16 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
             </div>
           )}
 
-          {!withStepper && (
+          {withStepper ? (
+            <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1 pt-2 text-[11px] text-subtle-foreground">
+              <span>已看 {totals.watched}/{totals.total} 集</span>
+              <span className="text-right tabular-nums">進度 {totals.percent}%</span>
+              <span className={unread > 0 ? "font-medium text-primary" : "text-muted-foreground"}>
+                {unread > 0 ? `還有 ${unread} 集未看` : "目前已追完"}
+              </span>
+              <span className="text-right">{formatLastWatched(work.lastWatchedAt)}</span>
+            </div>
+          ) : (
             <div className="mt-auto space-y-1.5 pt-2">
               <p className="text-xs text-muted-foreground">
                 {season ? `目前第 ${season.number} 季 · ` : ""}總進度 {totals.watched}/
