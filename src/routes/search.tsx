@@ -13,7 +13,7 @@ import type { OnlineWork } from "@/lib/drama/hongguo-data";
 import { lookupHongguoWork } from "@/lib/drama/hongguo.functions";
 import { buildSourceUpdate } from "@/lib/drama/source-update";
 import { dramaStore, useWorks } from "@/lib/drama/store";
-import type { Work } from "@/lib/drama/types";
+import type { WatchStatus, Work } from "@/lib/drama/types";
 
 const LAST_SEARCH_KEY = "nina-drama:last-search:v21";
 const LOCAL_RESULTS_COLLAPSED_KEY = "nina-drama:local-results-collapsed:v21";
@@ -206,8 +206,23 @@ function episodeLabel(work: Work) {
   return current ? `${current.currentEpisodes ?? current.totalEpisodes} 集` : "未提供";
 }
 
+function watchStatusLabel(status: WatchStatus) {
+  const labels: Record<WatchStatus, string> = {
+    unwatched: "未觀看",
+    pending: "待觀看",
+    waiting: "等更新",
+    want: "想看",
+    watching: "觀看中",
+    completed: "已看完",
+    paused: "暫停／棄劇",
+    dropped: "暫停／棄劇",
+  };
+  return labels[status];
+}
+
 function LocalSearchResult({ work }: { work: Work }) {
   const lookup = useServerFn(lookupHongguoWork);
+  const [expanded, setExpanded] = useState(false);
   const [state, setState] = useState<
     | { kind: "idle" }
     | { kind: "loading" }
@@ -215,6 +230,8 @@ function LocalSearchResult({ work }: { work: Work }) {
     | { kind: "preview"; online: OnlineWork }
   >({ kind: "idle" });
   const seriesId = sourceIdFor(work);
+  const currentSeason =
+    work.seasons.find((season) => season.id === work.currentSeasonId) ?? work.seasons[0] ?? null;
 
   async function checkUpdate() {
     if (!seriesId) return;
@@ -247,78 +264,151 @@ function LocalSearchResult({ work }: { work: Work }) {
         <WorkCover src={work.cover} title={work.title} />
         <p className="mt-2 truncate text-sm font-medium">{work.title}</p>
       </Link>
-      <details className="mt-1 text-xs text-muted-foreground">
-        <summary className="cursor-pointer py-1">更多</summary>
-        <div className="surface absolute left-5 right-5 z-20 space-y-3 p-3 shadow-float">
-          {seriesId && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={state.kind === "loading"}
-              onClick={() => void checkUpdate()}
-            >
-              {state.kind === "loading" ? "取得資料中…" : "更新作品資料"}
-            </Button>
-          )}
+      <button
+        type="button"
+        className="mt-1 py-1 text-xs text-muted-foreground active:opacity-70"
+        aria-expanded={expanded}
+        onClick={() => setExpanded(true)}
+      >
+        ▶ 更多
+      </button>
 
-          {state.kind === "error" && (
-            <div
-              role="alert"
-              className="rounded-lg border border-destructive/30 p-3 text-xs text-destructive"
-            >
-              {state.message}
-              <Button type="button" size="sm" variant="ghost" onClick={() => void checkUpdate()}>
-                重新取得
+      {expanded && (
+        <>
+          <button
+            type="button"
+            aria-label="關閉更多資訊"
+            className="fixed inset-0 z-40 bg-black/20"
+            onClick={() => setExpanded(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${work.title} 更多資訊`}
+            className="surface fixed bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] left-4 right-4 z-50 max-h-[68dvh] overflow-y-auto rounded-3xl p-4 shadow-float"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-foreground">{work.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">收藏作品資訊</p>
+              </div>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                aria-label="關閉"
+                className="-mr-2 -mt-2 shrink-0"
+                onClick={() => setExpanded(false)}
+              >
+                <X className="size-4" />
               </Button>
             </div>
-          )}
-          {state.kind === "preview" && (
-            <div className="space-y-3 rounded-lg border border-primary/30 bg-primary-soft p-3 text-xs">
-              <p className="font-medium text-foreground">更新前請確認差異</p>
-              <div className="grid grid-cols-3 gap-2 text-muted-foreground">
-                <span>欄位</span>
-                <span>原本資料</span>
-                <span>新取得資料</span>
-                <span>劇名</span>
-                <span className="break-words text-foreground">{work.title}</span>
-                <span className="break-words text-foreground">{state.online.title}</span>
-                <span>集數</span>
-                <span className="text-foreground">{episodeLabel(work)}</span>
-                <span className="text-foreground">
-                  {state.online.totalEpisodes ? `${state.online.totalEpisodes} 集` : "未提供"}
-                </span>
-                <span>簡介</span>
-                <span className="text-foreground">{work.synopsis ? "已有" : "無"}</span>
-                <span className="text-foreground">
-                  {state.online.synopsis ? "有新資料" : "未提供"}
-                </span>
-                <span>封面</span>
-                <span className="text-foreground">{work.cover ? "已有" : "無"}</span>
-                <span className="text-foreground">
-                  {state.online.coverUrl ? "有新資料" : "未提供"}
-                </span>
+
+            <div className="grid grid-cols-3 gap-2 rounded-2xl bg-background/70 p-3 text-center text-xs">
+              <div>
+                <p className="text-muted-foreground">季數</p>
+                <p className="mt-1 font-medium text-foreground">
+                  {currentSeason ? `第 ${currentSeason.number} 季` : "未提供"}
+                </p>
               </div>
-              <p className="rounded-md bg-background/70 p-2 text-muted-foreground">
-                建議更新：劇名、封面、簡介、標籤及官方集數。個人進度、評分、備註、收藏狀態與自訂分類不會被覆蓋。
-              </p>
-              <div className="flex gap-2">
-                <Button type="button" size="sm" onClick={() => applyUpdate(state.online)}>
-                  確認更新
-                </Button>
+              <div>
+                <p className="text-muted-foreground">進度</p>
+                <p className="mt-1 font-medium text-foreground">
+                  {currentSeason
+                    ? `${currentSeason.watchedEpisodes}/${currentSeason.currentEpisodes ?? currentSeason.totalEpisodes}`
+                    : "未提供"}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">狀態</p>
+                <p className="mt-1 font-medium text-foreground">{watchStatusLabel(work.watchStatus)}</p>
+              </div>
+            </div>
+
+            {work.synopsis && (
+              <div className="mt-3 rounded-2xl border border-border p-3">
+                <p className="mb-1 text-xs font-medium text-foreground">作品簡介</p>
+                <p className="line-clamp-4 text-xs leading-5 text-muted-foreground">{work.synopsis}</p>
+              </div>
+            )}
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild type="button" size="sm" variant="secondary">
+                <Link to="/work/$id" params={{ id: work.id }}>
+                  查看詳情
+                </Link>
+              </Button>
+              {seriesId && (
                 <Button
                   type="button"
                   size="sm"
                   variant="ghost"
-                  onClick={() => setState({ kind: "idle" })}
+                  disabled={state.kind === "loading"}
+                  onClick={() => void checkUpdate()}
                 >
-                  取消
+                  {state.kind === "loading" ? "取得資料中…" : "更新作品資料"}
+                </Button>
+              )}
+            </div>
+
+            {state.kind === "error" && (
+              <div
+                role="alert"
+                className="mt-3 rounded-xl border border-destructive/30 p-3 text-xs text-destructive"
+              >
+                {state.message}
+                <Button type="button" size="sm" variant="ghost" onClick={() => void checkUpdate()}>
+                  重新取得
                 </Button>
               </div>
-            </div>
-          )}
-        </div>
-      </details>
+            )}
+            {state.kind === "preview" && (
+              <div className="mt-3 space-y-3 rounded-xl border border-primary/30 bg-primary-soft p-3 text-xs">
+                <p className="font-medium text-foreground">更新前請確認差異</p>
+                <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                  <span>欄位</span>
+                  <span>原本資料</span>
+                  <span>新取得資料</span>
+                  <span>劇名</span>
+                  <span className="break-words text-foreground">{work.title}</span>
+                  <span className="break-words text-foreground">{state.online.title}</span>
+                  <span>集數</span>
+                  <span className="text-foreground">{episodeLabel(work)}</span>
+                  <span className="text-foreground">
+                    {state.online.totalEpisodes ? `${state.online.totalEpisodes} 集` : "未提供"}
+                  </span>
+                  <span>簡介</span>
+                  <span className="text-foreground">{work.synopsis ? "已有" : "無"}</span>
+                  <span className="text-foreground">
+                    {state.online.synopsis ? "有新資料" : "未提供"}
+                  </span>
+                  <span>封面</span>
+                  <span className="text-foreground">{work.cover ? "已有" : "無"}</span>
+                  <span className="text-foreground">
+                    {state.online.coverUrl ? "有新資料" : "未提供"}
+                  </span>
+                </div>
+                <p className="rounded-md bg-background/70 p-2 text-muted-foreground">
+                  建議更新：劇名、封面、簡介、標籤及官方集數。個人進度、評分、備註、收藏狀態與自訂分類不會被覆蓋。
+                </p>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" onClick={() => applyUpdate(state.online)}>
+                    確認更新
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setState({ kind: "idle" })}
+                  >
+                    取消
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
