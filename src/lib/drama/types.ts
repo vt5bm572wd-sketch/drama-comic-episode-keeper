@@ -4,7 +4,17 @@ export type WatchStatus =
 export type StatusMode = "auto" | "manual";
 export type CollectStatus = "favorite" | "collected" | "archived";
 
+export interface WatchMemory {
+  summary?: string;
+  plot?: string;
+  scenes?: string;
+  characters?: string;
+  notes?: string;
+}
+
 export interface Season {
+  watchMemory?: WatchMemory;
+
   id: string;
   /** 季數（第幾季） */
   number: number;
