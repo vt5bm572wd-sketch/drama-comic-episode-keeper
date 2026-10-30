@@ -8,7 +8,7 @@ import type { Season, WatchMemory } from "@/lib/drama/types";
 type MemoryTab = "plot" | "scenes" | "notes";
 
 const tabLabels: Record<MemoryTab, string> = {
-  plot: "劇情",
+  plot: "關鍵劇情",
   scenes: "名場面",
   notes: "筆記",
 };
@@ -133,39 +133,21 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
       </div>
 
       {tab === "plot" && (
-        <div className="space-y-6">
-          <div>
-            <h3 className="mb-3 font-semibold">一句話想起這一季</h3>
-            {memory.summary && editingKey !== "summary" && (
-              <p className="mb-3 whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">{memory.summary}</p>
-            )}
-            {editor("summary", "一句話想起這一季", "快速想起本季故事", 4)}
-          </div>
-
-          <div className="border-t border-border pt-5">
-            <h3 className="mb-3 font-semibold">📖 關鍵劇情</h3>
-            {memory.plot && editingKey !== "plot" && (
-              <ol className="mb-4 space-y-4">
-                {plotLines(memory.plot).map((line, index) => (
-                  <li key={`${index}-${line}`} className="flex gap-4 text-sm leading-7">
-                    <span className="shrink-0 font-serif text-xl text-primary/70">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <span className="min-w-0 whitespace-pre-wrap break-words text-muted-foreground">{line}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {editor("plot", "關鍵劇情", "每行輸入一個重要事件", 6)}
-          </div>
-
-          <div className="border-t border-border pt-5">
-            <h3 className="mb-3 font-semibold">人物關係</h3>
-            {memory.characters && editingKey !== "characters" && (
-              <p className="mb-3 whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">{memory.characters}</p>
-            )}
-            {editor("characters", "人物關係", "人物關係與情感變化", 5)}
-          </div>
+        <div>
+          <h3 className="mb-3 font-semibold">📖 關鍵劇情</h3>
+          {memory.plot && editingKey !== "plot" && (
+            <ol className="mb-4 space-y-4">
+              {plotLines(memory.plot).map((line, index) => (
+                <li key={`${index}-${line}`} className="flex gap-4 text-sm leading-7">
+                  <span className="shrink-0 font-serif text-xl text-primary/70">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="min-w-0 whitespace-pre-wrap break-words text-muted-foreground">{line}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          {editor("plot", "關鍵劇情", "每行輸入一個重要事件", 6)}
         </div>
       )}
 
