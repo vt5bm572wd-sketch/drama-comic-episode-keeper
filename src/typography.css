@@ -1,5 +1,6 @@
 :root {
-  --nina-font: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --nina-font-sans: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --nina-font-serif: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
 }
 
 html,
@@ -15,17 +16,26 @@ span,
 div,
 label,
 summary,
+.font-sans {
+  font-family: var(--nina-font-sans) !important;
+}
+
 h1,
 h2,
 h3,
-h4,
-h5,
-h6,
-.font-sans,
 .font-serif,
 .font-display,
 .brand-title {
-  font-family: var(--nina-font) !important;
+  font-family: var(--nina-font-serif) !important;
+}
+
+button,
+input,
+textarea,
+select,
+option,
+.tabular-nums {
+  font-family: var(--nina-font-sans) !important;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
