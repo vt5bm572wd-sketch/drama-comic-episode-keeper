@@ -120,19 +120,17 @@ describe("AI 觀看記憶", () => {
         ],
         famousScenes: [],
         suggestedTags: ["久別重逢", "久別重逢"],
-        excludedItems: [
-          { text: "疑似後續事件", reason: "無法確認屬於本季", suspectedSeason: 2 },
-        ],
+        excludedItems: [{ text: "疑似後續事件", reason: "無法確認屬於本季", suspectedSeason: 2 }],
       },
       identity,
       NOW,
-      "google/gemini-3.1-flash-lite",
+      "google/gemini-3.8-flash",
     );
     expect(converted.keyPlots).toHaveLength(1);
     expect(converted.keyPlots[0]?.id).toBeTruthy();
     expect(converted.suggestedTags).toEqual(["久別重逢"]);
     expect(converted.identity).toEqual(identity);
-    expect(converted.model).toBe("google/gemini-3.1-flash-lite");
+    expect(converted.model).toBe("google/gemini-3.8-flash");
   });
 
   it("不同季分開保存，重新載入後仍存在", () => {

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { google } from "@ai-sdk/google";
 import { generateText, Output } from "ai";
 import {
   aiMemoryGeneratedSchema,
@@ -6,7 +7,7 @@ import {
   type AiMemoryServerResult,
 } from "./ai-memory-contract";
 
-const DEFAULT_MODEL = "google/gemini-3.1-flash-lite";
+const DEFAULT_MODEL = "gemini-3.8-flash";
 
 function promptFor(data: ReturnType<typeof aiMemoryGenerationInputSchema.parse>) {
   const sourceCount = data.officialSynopsis ? 1 : 0;
@@ -36,7 +37,7 @@ ${data.officialSynopsis || "未提供"}
 請輸出符合 schema 的結構化資料。`;
 }
 
-function safeGatewayError(error: unknown) {
+function safeProviderError(error: unknown) {
   if (!(error instanceof Error)) return "unknown";
   const status = "statusCode" in error ? String(error.statusCode) : "unknown";
   return `${error.name} (status ${status})`;
@@ -53,27 +54,35 @@ export const generateAiMemoryServer = createServerFn({ method: "POST" })
       };
     }
 
-    const model = process.env.AI_GATEWAY_MODEL?.trim() || DEFAULT_MODEL;
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim()) {
+      return {
+        ok: false,
+        code: "missing_api_key",
+        message: "尚未設定 Gemini API Key，已改用官方簡介整理。",
+      };
+    }
+
+    const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
     try {
       const { output } = await generateText({
-        model,
+        model: google(model),
         output: Output.object({ schema: aiMemoryGeneratedSchema }),
         temperature: 0.1,
         prompt: promptFor(data),
       });
-      if (!output) throw new Error("AI Gateway did not return structured output");
+      if (!output) throw new Error("Gemini did not return structured output");
       return {
         ok: true,
         memory: output,
         generatedAt: new Date().toISOString(),
-        model,
+        model: `google/${model}`,
       };
     } catch (error) {
       // 不記錄簡介或使用者資料，只留下非敏感錯誤類型供 Vercel Logs 偵錯。
-      console.error("AI memory gateway request failed", safeGatewayError(error));
+      console.error("AI memory Gemini request failed", safeProviderError(error));
       return {
         ok: false,
-        code: "gateway_unavailable",
+        code: "provider_unavailable",
         message: "AI 暫時無法連線，已改用官方簡介整理。",
       };
     }
