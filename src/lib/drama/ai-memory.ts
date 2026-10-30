@@ -6,41 +6,13 @@ import type { AiMemory, AiMemoryItem, AiScene, Season, Work } from "./types";
 export type { AiMemoryGenerationInput } from "./ai-memory-contract";
 
 const accepted = (item: Pick<AiMemoryItem, "confidence" | "seasonVerified">) =>
-  item.seasonVerified;
+  item.seasonVerified && item.confidence !== "low";
 
 const normalizeMemoryText = (value: string) =>
   value
     .toLocaleLowerCase("zh-TW")
     .replace(/[\s，。！？、；：,.!?;:'"「」『』（）()\-—_]/g, "")
     .trim();
-
-function sceneTitleFromText(text: string, index: number) {
-  const cleaned = text.replace(/[。！？!?]+$/g, "").trim();
-  const firstClause = cleaned.split(/[，,；;：:]/)[0]?.trim();
-  if (firstClause && firstClause.length >= 4) return firstClause.slice(0, 36);
-  return `記憶場面 ${index + 1}`;
-}
-
-function backfillFamousScenes(memory: AiMemory): AiMemory {
-  if (memory.famousScenes.length || !memory.keyPlots.length) return memory;
-
-  const scenes: AiScene[] = memory.keyPlots
-    .filter(accepted)
-    .slice(0, 5)
-    .map((item, index) => ({
-      id: uid("scene"),
-      text: item.text,
-      title: sceneTitleFromText(item.text, index),
-      description: item.text,
-      confidence: item.confidence,
-      seasonVerified: item.seasonVerified,
-      sourceCount: item.sourceCount,
-      sourceSeason: item.sourceSeason,
-      verificationReason: `${item.verificationReason}；由已確認的關鍵劇情補為記憶場面`,
-    }));
-
-  return { ...memory, famousScenes: scenes };
-}
 
 export function sanitizeAiMemory(memory: AiMemory): AiMemory {
   const sanitized = {
@@ -51,7 +23,7 @@ export function sanitizeAiMemory(memory: AiMemory): AiMemory {
       new Set(memory.suggestedTags.map((tag) => tag.trim()).filter(Boolean)),
     ),
   };
-  return backfillFamousScenes(sanitized);
+  return sanitized;
 }
 
 function mergeUniquePlots(previous: AiMemoryItem[], next: AiMemoryItem[]) {
@@ -195,7 +167,7 @@ function localMemory(input: AiMemoryGenerationInput): AiMemory {
     .map((value) => value.trim())
     .filter((value) => value.length >= 6)
     .slice(0, 5);
-  const keyPlots = sentences.map((text) => verifiedItem(`${text}。`, input));
+  const keyPlots: AiMemoryItem[] = [];
   return sanitizeAiMemory({
     summary:
       sentences.slice(0, 2).join("。") +
@@ -233,9 +205,7 @@ export function toAiMemory(
 }
 
 function fallbackMemory(input: AiMemoryGenerationInput) {
-  return /冰冷重遇/.test(input.workTitle) && input.seasonNumber === 1
-    ? iceColdMemory(input)
-    : localMemory(input);
+  return localMemory(input);
 }
 
 /** 伺服器 AI 優先；缺少來源、額度或連線失敗時安全回退，永不阻塞收藏流程。 */
@@ -249,5 +219,6 @@ export async function generateAiMemory(work: Work, season: Season): Promise<AiMe
       // Server Function 本身失敗時仍使用本機備援，避免影響既有收藏資料。
     }
   }
+  // Never present synopsis fragments or hard-coded scenes as verified AI research.
   return sanitizeAiMemory(fallbackMemory(input));
 }
