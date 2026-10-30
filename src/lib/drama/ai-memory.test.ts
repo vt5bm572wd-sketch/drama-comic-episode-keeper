@@ -88,7 +88,7 @@ describe("AI 觀看記憶", () => {
     expect(sanitizeAiMemory(target).keyPlots.map((item) => item.id)).toEqual(["high"]);
   });
 
-  it("《冰冷重遇》假資料只寫入第一季身份", async () => {
+  it("備援不再生成《冰冷重遇》的硬編名場面", async () => {
     const target = work();
     const generated = await generateAiMemory(target, target.seasons[0]!);
     expect(generated.identity.seasonNumber).toBe(1);
