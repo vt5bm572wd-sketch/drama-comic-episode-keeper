@@ -11,10 +11,12 @@ import { WorkCover } from "./WorkCover";
 export function PosterCard({
   work,
   eager,
+  showProgress = false,
   showUnread = false,
 }: {
   work: Work;
   eager?: boolean;
+  showProgress?: boolean;
   showUnread?: boolean;
 }) {
   const season = currentSeason(work);
@@ -31,7 +33,7 @@ export function PosterCard({
       <div className="relative">
         <WorkCover src={work.cover} title={work.title} eager={eager} />
         {work.isDemo && <DemoBadge className="absolute left-2 top-2" />}
-        {season && (
+        {season && showProgress && (
           <div className="absolute inset-x-2 bottom-2">
             <ProgressBar value={percent} className="h-1 bg-background/60" />
           </div>

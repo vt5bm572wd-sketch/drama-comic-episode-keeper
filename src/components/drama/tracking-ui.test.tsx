@@ -69,11 +69,12 @@ describe("新增與編輯的共用表單", () => {
       "追劇中",
       "等更新",
       "已看完",
-      "棄劇",
+      "暫停／棄劇",
     ]);
     expect(options.some((option) => option.value === "want")).toBe(false);
     expect(options.some((option) => option.value === "pending")).toBe(false);
-    expect(options.some((option) => option.value === "paused")).toBe(false);
+    expect(options.some((option) => option.value === "paused")).toBe(true);
+    expect(options.some((option) => option.value === "dropped")).toBe(false);
   });
   it("簡易模式保留必要欄位並隱藏進階設定", () => {
     render(<WorkForm mode="simple" submitLabel="新增" onSubmit={() => {}} />);

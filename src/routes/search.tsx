@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Search, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
 import { OnlineSearchResults } from "@/components/drama/OnlineSearchResults";
 import { PageHeader } from "@/components/drama/PageHeader";
-import { WorkRow } from "@/components/drama/WorkCards";
+import { WorkCover } from "@/components/drama/WorkCover";
 import { Button } from "@/components/ui/button";
 import { searchWorks } from "@/lib/drama/domain";
 import type { OnlineWork } from "@/lib/drama/hongguo-data";
@@ -40,8 +40,31 @@ function SearchPage() {
   const navigate = Route.useNavigate();
   const works = useWorks();
 
-  const setQ = (value: string) =>
-    navigate({ to: ".", search: (prev) => ({ ...prev, q: value || undefined }), replace: true });
+  useEffect(() => {
+    if (!q) return;
+    const key = `nina-drama:search-scroll:v21:${q}`;
+    const saved = Number(window.sessionStorage.getItem(key) ?? 0);
+    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: saved }));
+    const save = () => window.sessionStorage.setItem(key, String(window.scrollY));
+    window.addEventListener("pagehide", save);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      save();
+      window.removeEventListener("pagehide", save);
+    };
+  }, [q]);
+
+  const setQ = (value: string) => {
+    if (!value && q) {
+      window.sessionStorage.removeItem(`nina-drama:search:v21:${q}`);
+      window.sessionStorage.removeItem(`nina-drama:search-scroll:v21:${q}`);
+    }
+    return navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, q: value || undefined }),
+      replace: true,
+    });
+  };
   const results = works ? searchWorks(works, q) : [];
 
   return (
@@ -89,7 +112,7 @@ function SearchPage() {
                 <span className="text-xs text-subtle-foreground">{results.length} 部</span>
               </div>
               {results.length > 0 ? (
-                <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
                   {results.map((w) => (
                     <LocalSearchResult key={w.id} work={w} />
                   ))}
@@ -169,77 +192,83 @@ function LocalSearchResult({ work }: { work: Work }) {
   }
 
   return (
-    <div className="surface space-y-3 p-3">
-      <WorkRow work={work} />
-      <div className="flex gap-2">
-        <Button asChild size="sm" variant="secondary">
-          <Link to="/work/$id" params={{ id: work.id }}>
-            查看詳情
-          </Link>
-        </Button>
-        {seriesId && (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={state.kind === "loading"}
-            onClick={() => void checkUpdate()}
-          >
-            {state.kind === "loading" ? "取得資料中…" : "更新作品資料"}
-          </Button>
-        )}
-      </div>
-      {state.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 p-3 text-xs text-destructive"
-        >
-          {state.message}
-          <Button type="button" size="sm" variant="ghost" onClick={() => void checkUpdate()}>
-            重新取得
-          </Button>
-        </div>
-      )}
-      {state.kind === "preview" && (
-        <div className="space-y-3 rounded-lg border border-primary/30 bg-primary-soft p-3 text-xs">
-          <p className="font-medium text-foreground">更新前請確認差異</p>
-          <div className="grid grid-cols-3 gap-2 text-muted-foreground">
-            <span>欄位</span>
-            <span>原本資料</span>
-            <span>新取得資料</span>
-            <span>劇名</span>
-            <span className="break-words text-foreground">{work.title}</span>
-            <span className="break-words text-foreground">{state.online.title}</span>
-            <span>集數</span>
-            <span className="text-foreground">{episodeLabel(work)}</span>
-            <span className="text-foreground">
-              {state.online.totalEpisodes ? `${state.online.totalEpisodes} 集` : "未提供"}
-            </span>
-            <span>簡介</span>
-            <span className="text-foreground">{work.synopsis ? "已有" : "無"}</span>
-            <span className="text-foreground">{state.online.synopsis ? "有新資料" : "未提供"}</span>
-            <span>封面</span>
-            <span className="text-foreground">{work.cover ? "已有" : "無"}</span>
-            <span className="text-foreground">{state.online.coverUrl ? "有新資料" : "未提供"}</span>
-          </div>
-          <p className="rounded-md bg-background/70 p-2 text-muted-foreground">
-            建議更新：劇名、封面、簡介、標籤及官方集數。個人進度、評分、備註、收藏狀態與自訂分類不會被覆蓋。
-          </p>
-          <div className="flex gap-2">
-            <Button type="button" size="sm" onClick={() => applyUpdate(state.online)}>
-              確認更新
-            </Button>
+    <div className="min-w-0">
+      <Link to="/work/$id" params={{ id: work.id }} className="block active:scale-[0.98]">
+        <WorkCover src={work.cover} title={work.title} />
+        <p className="mt-2 truncate text-sm font-medium">{work.title}</p>
+      </Link>
+      <details className="mt-1 text-xs text-muted-foreground">
+        <summary className="cursor-pointer py-1">更多</summary>
+        <div className="surface absolute left-5 right-5 z-20 space-y-3 p-3 shadow-float">
+          {seriesId && (
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              onClick={() => setState({ kind: "idle" })}
+              disabled={state.kind === "loading"}
+              onClick={() => void checkUpdate()}
             >
-              取消
+              {state.kind === "loading" ? "取得資料中…" : "更新作品資料"}
             </Button>
-          </div>
+          )}
+
+          {state.kind === "error" && (
+            <div
+              role="alert"
+              className="rounded-lg border border-destructive/30 p-3 text-xs text-destructive"
+            >
+              {state.message}
+              <Button type="button" size="sm" variant="ghost" onClick={() => void checkUpdate()}>
+                重新取得
+              </Button>
+            </div>
+          )}
+          {state.kind === "preview" && (
+            <div className="space-y-3 rounded-lg border border-primary/30 bg-primary-soft p-3 text-xs">
+              <p className="font-medium text-foreground">更新前請確認差異</p>
+              <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                <span>欄位</span>
+                <span>原本資料</span>
+                <span>新取得資料</span>
+                <span>劇名</span>
+                <span className="break-words text-foreground">{work.title}</span>
+                <span className="break-words text-foreground">{state.online.title}</span>
+                <span>集數</span>
+                <span className="text-foreground">{episodeLabel(work)}</span>
+                <span className="text-foreground">
+                  {state.online.totalEpisodes ? `${state.online.totalEpisodes} 集` : "未提供"}
+                </span>
+                <span>簡介</span>
+                <span className="text-foreground">{work.synopsis ? "已有" : "無"}</span>
+                <span className="text-foreground">
+                  {state.online.synopsis ? "有新資料" : "未提供"}
+                </span>
+                <span>封面</span>
+                <span className="text-foreground">{work.cover ? "已有" : "無"}</span>
+                <span className="text-foreground">
+                  {state.online.coverUrl ? "有新資料" : "未提供"}
+                </span>
+              </div>
+              <p className="rounded-md bg-background/70 p-2 text-muted-foreground">
+                建議更新：劇名、封面、簡介、標籤及官方集數。個人進度、評分、備註、收藏狀態與自訂分類不會被覆蓋。
+              </p>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" onClick={() => applyUpdate(state.online)}>
+                  確認更新
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setState({ kind: "idle" })}
+                >
+                  取消
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </details>
     </div>
   );
 }

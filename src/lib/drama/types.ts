@@ -28,6 +28,8 @@ export interface Season {
   /** 實際已更新集數；舊資料使用原總集數 */
   currentEpisodes?: number | undefined;
   watchedEpisodes: number;
+  /** 最近一次追到當時最新集時的集數；用來辨識後續新增的集數。 */
+  caughtUpEpisodes?: number | undefined;
   status: WatchStatus;
   statusMode?: StatusMode | undefined;
   note: string;
