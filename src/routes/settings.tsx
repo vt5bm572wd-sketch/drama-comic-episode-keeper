@@ -37,7 +37,6 @@ import {
 } from "@/lib/drama/cover-store";
 import { dramaRepo, dramaStore, useWorks } from "@/lib/drama/store";
 import { cn } from "@/lib/utils";
-import { EMPTY_RECOMMENDATION_FEEDBACK, type RecommendationFeedback } from "@/lib/drama/v21";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -67,9 +66,6 @@ function SettingsPage() {
   const [coverDetailsOpen, setCoverDetailsOpen] = useState(false);
   const [coverItems, setCoverItems] = useState<CoverStorageItem[]>([]);
   const [loadingCovers, setLoadingCovers] = useState(false);
-  const [recommendationFeedback, setRecommendationFeedback] = useState<RecommendationFeedback>(
-    EMPTY_RECOMMENDATION_FEEDBACK,
-  );
   const refreshStorage = async () => {
     if (!works) return;
     setStorage(await getCoverStorageStats(works));
@@ -95,14 +91,6 @@ function SettingsPage() {
   };
   useEffect(() => {
     void refreshStorage();
-    try {
-      const saved = JSON.parse(
-        window.localStorage.getItem("nina-drama:recommendation-feedback:v21") ?? "null",
-      );
-      if (saved?.hiddenSeriesIds && saved?.downrankedTags) setRecommendationFeedback(saved);
-    } catch {
-      /* keep defaults */
-    }
   }, [works]);
   if (works === null)
     return (
@@ -392,34 +380,6 @@ function SettingsPage() {
               }
             />
           )}
-        </Group>
-        <Group title="推薦設定">
-          <div className="space-y-3 p-4">
-            <p className="text-sm font-medium">
-              已屏蔽作品：{recommendationFeedback.hiddenSeriesIds.length} 部
-            </p>
-            <p className="text-xs text-muted-foreground">
-              降低權重的標籤：
-              {recommendationFeedback.downrankedTags.length
-                ? recommendationFeedback.downrankedTags.join("、")
-                : "無"}
-            </p>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={
-                !recommendationFeedback.hiddenSeriesIds.length &&
-                !recommendationFeedback.downrankedTags.length
-              }
-              onClick={() => {
-                window.localStorage.removeItem("nina-drama:recommendation-feedback:v21");
-                setRecommendationFeedback(EMPTY_RECOMMENDATION_FEEDBACK);
-                toast.success("已恢復全部推薦");
-              }}
-            >
-              恢復推薦
-            </Button>
-          </div>
         </Group>
         <Group title="危險區域">
           <Row

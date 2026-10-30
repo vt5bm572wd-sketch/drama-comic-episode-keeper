@@ -9,11 +9,6 @@ import { tagsToCategories } from "@/lib/drama/hongguo-data";
 import { getHongguoRanking } from "@/lib/drama/hongguo.functions";
 import type { RankedWork, RankingKind } from "@/lib/drama/hongguo-data";
 import type { Work } from "@/lib/drama/types";
-import {
-  EMPTY_RECOMMENDATION_FEEDBACK,
-  recommendationScore,
-  type RecommendationFeedback,
-} from "@/lib/drama/v21";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_COLLAPSED_KEY = "nina-drama-home-categories-collapsed";
@@ -34,19 +29,14 @@ export function HomeDiscovery({
   const [comicRefresh, setComicRefresh] = useState(0);
   const [aiRefresh, setAiRefresh] = useState(0);
   const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
-  const [feedback, setFeedback] = useState<RecommendationFeedback>(EMPTY_RECOMMENDATION_FEEDBACK);
   const comic = useRanking(getRanking, "comic", comicRefresh);
   const ai = useRanking(getRanking, "ai", aiRefresh);
 
   useEffect(() => {
     try {
       setCategoriesCollapsed(window.localStorage.getItem(CATEGORY_COLLAPSED_KEY) === "true");
-      const saved = JSON.parse(
-        window.localStorage.getItem("nina-drama:recommendation-feedback:v21") ?? "null",
-      );
-      if (saved?.hiddenSeriesIds && saved?.downrankedTags) setFeedback(saved);
     } catch {
-      // Private browsing can disable storage; the control remains usable in memory.
+      // Private browsing can disable storage; use the default expanded state.
     }
   }, []);
 
@@ -88,16 +78,13 @@ export function HomeDiscovery({
     );
     const eligible = pool.filter(
       (item) =>
-        !feedback.hiddenSeriesIds.includes(item.seriesId) &&
-        !completedIds.has(item.seriesId) &&
-        !completedTitles.has(normalizeTitle(item.title)),
+        !completedIds.has(item.seriesId) && !completedTitles.has(normalizeTitle(item.title)),
     );
     const ranked = eligible.map((item) => ({
       item,
-      score: recommendationScore(
-        [...item.tags, ...tagsToCategories(item.tags)],
-        preferences,
-        feedback,
+      score: [...item.tags, ...tagsToCategories(item.tags)].reduce(
+        (score, tag) => score + (preferences.get(tag.toLocaleLowerCase()) ?? 0),
+        0,
       ),
     }));
     ranked.sort((a, b) => b.score - a.score || a.item.rank - b.item.rank);
@@ -106,11 +93,7 @@ export function HomeDiscovery({
     const offset = (batch * 8) % sorted.length;
     const rotated = [...sorted.slice(offset), ...sorted.slice(0, offset)];
     return rotated.slice(0, Math.min(8, rotated.length));
-  }, [ai.data, batch, comic.data, feedback, preferences, works]);
-  const saveFeedback = (next: RecommendationFeedback) => {
-    setFeedback(next);
-    window.localStorage.setItem("nina-drama:recommendation-feedback:v21", JSON.stringify(next));
-  };
+  }, [ai.data, batch, comic.data, preferences, works]);
 
   const hasTags = preferences.size > 0;
   const toggleCategories = () => {
@@ -167,29 +150,7 @@ export function HomeDiscovery({
           {recommendations.length ? (
             <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
               {recommendations.map((item) => (
-                <RankCard
-                  key={item.seriesId}
-                  item={item}
-                  works={works}
-                  recommendationActions={{
-                    hide: () =>
-                      saveFeedback({
-                        ...feedback,
-                        hiddenSeriesIds: [...new Set([...feedback.hiddenSeriesIds, item.seriesId])],
-                      }),
-                    downrank: () =>
-                      saveFeedback({
-                        ...feedback,
-                        downrankedTags: [
-                          ...new Set([
-                            ...feedback.downrankedTags,
-                            ...item.tags,
-                            ...tagsToCategories(item.tags),
-                          ]),
-                        ],
-                      }),
-                  }}
-                />
+                <RankCard key={item.seriesId} item={item} works={works} />
               ))}
             </div>
           ) : (
@@ -346,15 +307,7 @@ function RankingSection({
   );
 }
 
-function RankCard({
-  item,
-  works,
-  recommendationActions,
-}: {
-  item: RankedWork;
-  works: Work[];
-  recommendationActions?: { hide: () => void; downrank: () => void };
-}) {
+function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
   const owned = findWorkBySeriesId(works, item.seriesId);
   const content = (
     <>
@@ -395,28 +348,7 @@ function RankCard({
       {content}
     </Link>
   );
-  if (!recommendationActions) return link;
-  return (
-    <div className="w-[132px] shrink-0">
-      {link}
-      <div className="mt-1 flex flex-col items-start">
-        <button
-          type="button"
-          className="min-h-7 text-[10px] text-muted-foreground"
-          onClick={recommendationActions.hide}
-        >
-          不感興趣
-        </button>
-        <button
-          type="button"
-          className="min-h-7 text-[10px] text-muted-foreground"
-          onClick={recommendationActions.downrank}
-        >
-          不要再推薦這類
-        </button>
-      </div>
-    </div>
-  );
+  return link;
 }
 
 function uniqueRanked(items: RankedWork[]) {
