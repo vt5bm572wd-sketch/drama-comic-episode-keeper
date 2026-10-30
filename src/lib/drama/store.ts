@@ -13,7 +13,7 @@ import {
 } from "./domain";
 import { findSeriesMatch, parseSeriesIdentity } from "./series-identity";
 import { CorruptDramaDataError, LocalStorageRepository, type DramaRepository } from "./repository";
-import type { CustomCategory, Season, Work } from "./types";
+import type { CustomCategory, Season, Work, WatchMemory } from "./types";
 
 type Listener = () => void;
 
@@ -362,6 +362,11 @@ export function createDramaStore(repo: DramaRepository) {
           ...(!exists ? { watchStatus: "pending" as const, watchStatusMode: "auto" as const } : {}),
         });
       });
+    },
+
+    setSeasonMemory(id: string, seasonId: string, memory: WatchMemory) {
+      if (!ensureLoaded().some(w => w.id === id && w.seasons.some(s => s.id === seasonId))) return false;
+      return updateOne(id, w => ({ ...w, updatedAt: now(), seasons: w.seasons.map(s => s.id === seasonId ? { ...s, watchMemory: memory, updatedAt: now() } : s) }));
     },
 
     removeSeason(id: string, seasonId: string) {
