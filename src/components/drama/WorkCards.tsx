@@ -69,6 +69,7 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
   const season = currentSeason(work);
   const totals = workTotals(work);
   const unread = Math.max(0, totals.total - totals.watched);
+  const seasonPercentValue = season ? seasonPercent(season) : 0;
 
   return (
     <div className="surface p-3">
@@ -103,12 +104,12 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
             </div>
           )}
 
-          {withStepper ? (
+          {withStepper && season ? (
             <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1 pt-2 text-[11px] text-subtle-foreground">
-              <span>已看 {totals.watched}/{totals.total} 集</span>
-              <span className="text-right tabular-nums">進度 {totals.percent}%</span>
+              <span>第 {season.number} 季 · 已看 {season.watchedEpisodes}/{availableEpisodes(season)} 集</span>
+              <span className="text-right tabular-nums">{seasonPercentValue}%</span>
               <span className={unread > 0 ? "font-medium text-primary" : "text-muted-foreground"}>
-                {unread > 0 ? `還有 ${unread} 集未看` : "目前已追完"}
+                {unread > 0 ? `全系列還有 ${unread} 集未看` : "目前已追完"}
               </span>
               <span className="text-right">{formatLastWatched(work.lastWatchedAt)}</span>
             </div>
