@@ -6,7 +6,11 @@ export const aiMemoryGenerationInputSchema = z.object({
   workTitle: z.string().trim().min(1).max(120),
   seasonNumber: z.number().int().positive().max(99),
   seriesId: z.string().trim().max(80).optional(),
+  coverUrl: z.string().trim().max(5000).optional(),
   officialSynopsis: z.string().trim().max(12000),
+  userContext: z.string().trim().max(12000).default(""),
+  existingKeyPlots: z.array(z.string().trim().min(1).max(300)).max(30).default([]),
+  existingFamousScenes: z.array(z.string().trim().min(1).max(300)).max(30).default([]),
   mainCharacters: z.array(z.string().trim().min(1).max(80)).max(30),
 });
 
