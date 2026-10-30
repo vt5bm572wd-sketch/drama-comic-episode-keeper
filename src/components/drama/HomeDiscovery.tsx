@@ -329,7 +329,9 @@ function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
           TOP {item.rank}
         </span>
       </div>
-      <p className="mt-2 line-clamp-2 min-h-9 text-sm font-medium leading-5">{item.title}</p>
+      <p className="mt-2 line-clamp-2 min-h-9 font-serif text-sm font-semibold leading-5">
+        {item.title}
+      </p>
       <p className="mt-1 truncate text-xs text-subtle-foreground">{item.heat || "紅果熱播"}</p>
     </>
   );
