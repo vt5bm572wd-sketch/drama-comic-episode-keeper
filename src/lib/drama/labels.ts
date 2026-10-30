@@ -13,8 +13,8 @@ export const WATCH_STATUS_LABEL: Record<WatchStatus, string> = {
   want: "未觀看",
   watching: "追劇中",
   completed: "已看完",
-  paused: "追劇中",
-  dropped: "棄劇",
+  paused: "暫停／棄劇",
+  dropped: "暫停／棄劇",
 };
 
 /** 使用者可選的觀看狀態：待觀看與暫停看已依 V2 規則移除。 */
@@ -23,7 +23,7 @@ export const WATCH_STATUS_ORDER: WatchStatus[] = [
   "watching",
   "waiting",
   "completed",
-  "dropped",
+  "paused",
 ];
 
 export const COLLECT_STATUS_LABEL: Record<CollectStatus, string> = {

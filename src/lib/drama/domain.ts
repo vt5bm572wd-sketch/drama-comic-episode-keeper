@@ -42,7 +42,13 @@ export function sortSeasons(seasons: Season[]): Season[] {
 }
 
 export function currentSeason(work: Work): Season | undefined {
-  return work.seasons.find((s) => s.id === work.currentSeasonId) ?? sortSeasons(work.seasons)[0];
+  const seasons = sortSeasons(work.seasons);
+  return (
+    seasons.find((s) => s.status === "watching") ??
+    seasons.find((s) => s.id === work.currentSeasonId) ??
+    seasons.find((s) => s.watchedEpisodes < availableEpisodes(s)) ??
+    seasons.at(-1)
+  );
 }
 
 const SPECIAL_MANUAL_STATUSES = new Set<WatchStatus>(["paused", "dropped", "waiting"]);
@@ -102,7 +108,14 @@ export function setSeasonProgress(
   if (value === target.watchedEpisodes) return work;
   const seasons = work.seasons.map((s) => {
     if (s.id !== seasonId) return s;
-    const changed = { ...s, watchedEpisodes: value, updatedAt: now, statusMode: "auto" as const };
+    const available = availableEpisodes(s);
+    const changed = {
+      ...s,
+      watchedEpisodes: value,
+      caughtUpEpisodes: available > 0 && value >= available ? available : s.caughtUpEpisodes,
+      updatedAt: now,
+      statusMode: "auto" as const,
+    };
     return {
       ...changed,
       status: deriveSeasonStatus(changed, false, work.seriesStatus === "completed"),
@@ -154,6 +167,7 @@ export function makeSeason(partial: SeasonInput, now: string): Season {
     totalEpisodes: total,
     currentEpisodes: partial.currentEpisodes ?? total,
     watchedEpisodes: clampEpisode(partial.watchedEpisodes ?? 0, partial.currentEpisodes ?? total),
+    caughtUpEpisodes: partial.caughtUpEpisodes,
     status: partial.status === "want" ? "unwatched" : (partial.status ?? "unwatched"),
     statusMode: partial.statusMode ?? "auto",
     note: partial.note ?? "",
@@ -401,6 +415,27 @@ export function progressHint(work: Work): string {
   return "";
 }
 
+/** 只回傳曾追到最新、後來來源又新增集數的季。 */
+export function newlyAvailableSeasons(work: Work): Season[] {
+  return sortSeasons(work.seasons).filter((season) => {
+    const available = availableEpisodes(season);
+    const caughtUp = season.caughtUpEpisodes ?? 0;
+    return caughtUp > 0 && season.watchedEpisodes >= caughtUp && available > caughtUp;
+  });
+}
+
+/** 系列中待開始的最高新季；第一季不算「新季來了」。 */
+export function newlyAddedSeason(work: Work): Season | undefined {
+  return sortSeasons(work.seasons)
+    .filter(
+      (season) =>
+        season.number > 1 &&
+        season.watchedEpisodes === 0 &&
+        (season.status === "pending" || season.status === "unwatched"),
+    )
+    .at(-1);
+}
+
 export function migrateWork(work: Work): Work {
   const migrated: Work = {
     ...work,
@@ -416,6 +451,12 @@ export function migrateWork(work: Work): Work {
       ...s,
       currentEpisodes: s.currentEpisodes ?? s.totalEpisodes,
       watchedEpisodes: s.watchedEpisodes ?? 0,
+      caughtUpEpisodes:
+        s.caughtUpEpisodes ??
+        ((s.watchedEpisodes ?? 0) > 0 &&
+        (s.watchedEpisodes ?? 0) >= (s.currentEpisodes ?? s.totalEpisodes)
+          ? (s.currentEpisodes ?? s.totalEpisodes)
+          : undefined),
       status: !s.status || s.status === "want" ? "unwatched" : s.status,
       statusMode: s.statusMode ?? "manual",
       ...(s.source || !work.source || index !== 0 ? {} : { source: work.source }),

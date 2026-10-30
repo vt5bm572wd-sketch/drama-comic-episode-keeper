@@ -64,7 +64,9 @@ function toDraft(work?: Work) {
     categories: work?.categories ?? [],
     tags: work?.tags.join("、") ?? "",
     collectStatus: (work?.collectStatus ?? "collected") as CollectStatus,
-    watchStatus: (work?.watchStatus === "want" ? "unwatched" : (work?.watchStatus ?? "unwatched")) as WatchStatus,
+    watchStatus: (work?.watchStatus === "want"
+      ? "unwatched"
+      : (work?.watchStatus ?? "unwatched")) as WatchStatus,
     watchStatusMode: work?.watchStatusMode ?? "manual",
     rating: work?.rating ?? 0,
     note: work?.note ?? "",
@@ -538,7 +540,7 @@ export function WorkForm({
       )}
 
       {mode === "advanced" && (
-        <Field label="備註">
+        <Field label="系列備註">
           <Textarea value={d.note} onChange={(e) => set("note", e.target.value)} rows={4} />
         </Field>
       )}

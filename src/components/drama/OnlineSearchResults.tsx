@@ -2,12 +2,13 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Check, Globe, Loader2, Plus, SearchX } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { OnlineWork } from "@/lib/drama/hongguo-data";
 import { searchHongguo } from "@/lib/drama/hongguo.functions";
 import { findWorkBySeriesId } from "@/lib/drama/link-import";
 import type { Work } from "@/lib/drama/types";
+import { sortOnlineByHeat } from "@/lib/drama/v21";
 import { EmptyState, LoadingBlock } from "./EmptyState";
 import { WorkCover } from "./WorkCover";
 
@@ -31,6 +32,18 @@ export function OnlineSearchResults({
 }) {
   const q = useDebounced(query.trim(), 450);
   const search = useServerFn(searchHongguo);
+  const cacheKey = `nina-drama:search:v21:${q}`;
+  const cached = useMemo(() => {
+    if (!q || typeof window === "undefined") return undefined;
+    try {
+      const value = JSON.parse(window.sessionStorage.getItem(cacheKey) ?? "null");
+      return value && Array.isArray(value.pages) && Array.isArray(value.pageParams)
+        ? value
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [cacheKey, q]);
   const result = useInfiniteQuery({
     queryKey: ["hongguo-search", q],
     queryFn: async ({ pageParam }) => {
@@ -41,9 +54,19 @@ export function OnlineSearchResults({
     initialPageParam: 1,
     getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
     enabled: q.length > 0,
+    initialData: cached,
     staleTime: 5 * 60_000,
     retry: false,
   });
+
+  useEffect(() => {
+    if (!q || !result.data) return;
+    try {
+      window.sessionStorage.setItem(cacheKey, JSON.stringify(result.data));
+    } catch {
+      // Safari private mode may disable session storage.
+    }
+  }, [cacheKey, q, result.data]);
 
   if (!query.trim()) {
     return (
@@ -73,10 +96,12 @@ export function OnlineSearchResults({
   }
 
   const seen = new Set<string>();
-  const items = result.data.pages
-    .flatMap((p) => p.items)
-    .filter((w) => !seen.has(w.seriesId) && seen.add(w.seriesId))
-    .filter((w) => !excludeOwned || !findWorkBySeriesId(works, w.seriesId));
+  const items = sortOnlineByHeat(
+    result.data.pages
+      .flatMap((p) => p.items)
+      .filter((w) => !seen.has(w.seriesId) && seen.add(w.seriesId))
+      .filter((w) => !excludeOwned || !findWorkBySeriesId(works, w.seriesId)),
+  );
   const total = result.data.pages[0]?.total ?? items.length;
 
   if (items.length === 0) {

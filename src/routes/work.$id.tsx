@@ -427,7 +427,7 @@ function WorkDetail({ work }: { work: Work }) {
         )}
 
         {work.note && (
-          <InfoBlock title="個人備註">
+          <InfoBlock title="系列備註">
             <p className="whitespace-pre-line rounded-xl bg-card px-4 py-3 text-[15px] leading-relaxed text-muted-foreground">
               {work.note}
             </p>

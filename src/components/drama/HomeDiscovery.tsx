@@ -9,6 +9,11 @@ import { tagsToCategories } from "@/lib/drama/hongguo-data";
 import { getHongguoRanking } from "@/lib/drama/hongguo.functions";
 import type { RankedWork, RankingKind } from "@/lib/drama/hongguo-data";
 import type { Work } from "@/lib/drama/types";
+import {
+  EMPTY_RECOMMENDATION_FEEDBACK,
+  recommendationScore,
+  type RecommendationFeedback,
+} from "@/lib/drama/v21";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_COLLAPSED_KEY = "nina-drama-home-categories-collapsed";
@@ -17,18 +22,29 @@ const RANKING_URL: Record<RankingKind, string> = {
   ai: "https://hongguoduanju.com/rank/hot-ai-drama",
 };
 
-export function HomeDiscovery({ works }: { works: Work[] }) {
+export function HomeDiscovery({
+  works,
+  only,
+}: {
+  works: Work[];
+  only?: "comicRanking" | "aiRanking" | "recommendations" | "categories";
+}) {
   const getRanking = useServerFn(getHongguoRanking);
   const [batch, setBatch] = useState(0);
   const [comicRefresh, setComicRefresh] = useState(0);
   const [aiRefresh, setAiRefresh] = useState(0);
   const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
+  const [feedback, setFeedback] = useState<RecommendationFeedback>(EMPTY_RECOMMENDATION_FEEDBACK);
   const comic = useRanking(getRanking, "comic", comicRefresh);
   const ai = useRanking(getRanking, "ai", aiRefresh);
 
   useEffect(() => {
     try {
       setCategoriesCollapsed(window.localStorage.getItem(CATEGORY_COLLAPSED_KEY) === "true");
+      const saved = JSON.parse(
+        window.localStorage.getItem("nina-drama:recommendation-feedback:v21") ?? "null",
+      );
+      if (saved?.hiddenSeriesIds && saved?.downrankedTags) setFeedback(saved);
     } catch {
       // Private browsing can disable storage; the control remains usable in memory.
     }
@@ -72,13 +88,16 @@ export function HomeDiscovery({ works }: { works: Work[] }) {
     );
     const eligible = pool.filter(
       (item) =>
-        !completedIds.has(item.seriesId) && !completedTitles.has(normalizeTitle(item.title)),
+        !feedback.hiddenSeriesIds.includes(item.seriesId) &&
+        !completedIds.has(item.seriesId) &&
+        !completedTitles.has(normalizeTitle(item.title)),
     );
     const ranked = eligible.map((item) => ({
       item,
-      score: [...item.tags, ...tagsToCategories(item.tags)].reduce(
-        (sum, tag) => sum + (preferences.get(tag.toLocaleLowerCase()) ?? 0),
-        0,
+      score: recommendationScore(
+        [...item.tags, ...tagsToCategories(item.tags)],
+        preferences,
+        feedback,
       ),
     }));
     ranked.sort((a, b) => b.score - a.score || a.item.rank - b.item.rank);
@@ -87,7 +106,11 @@ export function HomeDiscovery({ works }: { works: Work[] }) {
     const offset = (batch * 8) % sorted.length;
     const rotated = [...sorted.slice(offset), ...sorted.slice(0, offset)];
     return rotated.slice(0, Math.min(8, rotated.length));
-  }, [ai.data, batch, comic.data, preferences, works]);
+  }, [ai.data, batch, comic.data, feedback, preferences, works]);
+  const saveFeedback = (next: RecommendationFeedback) => {
+    setFeedback(next);
+    window.localStorage.setItem("nina-drama:recommendation-feedback:v21", JSON.stringify(next));
+  };
 
   const hasTags = preferences.size > 0;
   const toggleCategories = () => {
@@ -104,105 +127,135 @@ export function HomeDiscovery({ works }: { works: Work[] }) {
 
   return (
     <div className="space-y-9">
-      <RankingSection
-        title="漫劇熱榜"
-        kind="comic"
-        icon={<Flame className="size-[18px] text-gold" />}
-        result={comic.data}
-        pending={comic.isPending}
-        retry={() => setComicRefresh((value) => value + 1)}
-        works={works}
-      />
-      <RankingSection
-        title="AI 劇熱榜"
-        kind="ai"
-        icon={<Sparkles className="size-[18px] text-primary" />}
-        result={ai.data}
-        pending={ai.isPending}
-        retry={() => setAiRefresh((value) => value + 1)}
-        works={works}
-      />
+      {(!only || only === "comicRanking") && (
+        <RankingSection
+          title="漫劇熱榜"
+          kind="comic"
+          icon={<Flame className="size-[18px] text-gold" />}
+          result={comic.data}
+          pending={comic.isPending}
+          retry={() => setComicRefresh((value) => value + 1)}
+          works={works}
+        />
+      )}
+      {(!only || only === "aiRanking") && (
+        <RankingSection
+          title="AI 劇熱榜"
+          kind="ai"
+          icon={<Sparkles className="size-[18px] text-primary" />}
+          result={ai.data}
+          pending={ai.isPending}
+          retry={() => setAiRefresh((value) => value + 1)}
+          works={works}
+        />
+      )}
 
-      <section className="px-5" aria-labelledby="recommendations-title">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 id="recommendations-title" className="font-serif text-lg font-semibold">
-            猜你喜歡
-          </h2>
+      {(!only || only === "recommendations") && (
+        <section className="px-5" aria-labelledby="recommendations-title">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 id="recommendations-title" className="font-serif text-lg font-semibold">
+              猜你喜歡
+            </h2>
+            <button
+              type="button"
+              onClick={() => setBatch((value) => value + 1)}
+              className="flex min-h-8 items-center gap-1 text-xs text-muted-foreground active:text-primary"
+            >
+              <RefreshCw className="size-3.5" /> 換一批
+            </button>
+          </div>
+          {recommendations.length ? (
+            <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
+              {recommendations.map((item) => (
+                <RankCard
+                  key={item.seriesId}
+                  item={item}
+                  works={works}
+                  recommendationActions={{
+                    hide: () =>
+                      saveFeedback({
+                        ...feedback,
+                        hiddenSeriesIds: [...new Set([...feedback.hiddenSeriesIds, item.seriesId])],
+                      }),
+                    downrank: () =>
+                      saveFeedback({
+                        ...feedback,
+                        downrankedTags: [
+                          ...new Set([
+                            ...feedback.downrankedTags,
+                            ...item.tags,
+                            ...tagsToCategories(item.tags),
+                          ]),
+                        ],
+                      }),
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl bg-card px-4 py-5 text-center text-sm text-muted-foreground">
+              目前沒有可推薦的榜單作品。
+            </p>
+          )}
+          <p className="mt-2 text-[11px] text-subtle-foreground">
+            {hasTags ? "依收藏、追劇與觀看過的題材排序" : "依近期官方熱榜提供多元推薦"}
+          </p>
+        </section>
+      )}
+
+      {(!only || only === "categories") && (
+        <section className="px-5" aria-labelledby="common-categories-title">
           <button
             type="button"
-            onClick={() => setBatch((value) => value + 1)}
-            className="flex min-h-8 items-center gap-1 text-xs text-muted-foreground active:text-primary"
+            aria-expanded={!categoriesCollapsed}
+            aria-controls="common-categories-content"
+            onClick={toggleCategories}
+            className="mb-3 flex min-h-8 w-full items-center justify-between gap-3 text-left"
           >
-            <RefreshCw className="size-3.5" /> 換一批
+            <h2 id="common-categories-title" className="font-serif text-lg font-semibold">
+              常用分類
+            </h2>
+            <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+              {categoriesCollapsed ? "展開" : "收起"}
+              <ChevronDown
+                className={cn(
+                  "size-4 transition-transform duration-300",
+                  categoriesCollapsed && "-rotate-90",
+                )}
+              />
+            </span>
           </button>
-        </div>
-        {recommendations.length ? (
-          <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
-            {recommendations.map((item) => (
-              <RankCard key={item.seriesId} item={item} works={works} />
-            ))}
+          <div
+            id="common-categories-content"
+            className={cn(
+              "overflow-hidden transition-[max-height,opacity] duration-300 ease-out motion-reduce:transition-none",
+              categoriesCollapsed ? "max-h-0 opacity-0" : "max-h-[640px] opacity-100",
+            )}
+          >
+            <div className="grid grid-cols-2 gap-2.5 pb-1">
+              {works.length > 0 &&
+                [...new Set(works.flatMap((work) => work.categories))].map((category) => {
+                  const count = works.filter((work) => work.categories.includes(category)).length;
+                  return (
+                    <Link
+                      key={category}
+                      to="/library"
+                      search={{ category }}
+                      className="surface flex min-h-12 items-center justify-between gap-2 px-4 py-3 active:scale-[0.98]"
+                    >
+                      <span className="truncate font-serif text-[15px] font-semibold">
+                        {category}
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">
+                        {count} 部
+                      </span>
+                    </Link>
+                  );
+                })}
+            </div>
           </div>
-        ) : (
-          <p className="rounded-xl bg-card px-4 py-5 text-center text-sm text-muted-foreground">
-            目前沒有可推薦的榜單作品。
-          </p>
-        )}
-        <p className="mt-2 text-[11px] text-subtle-foreground">
-          {hasTags ? "依收藏、追劇與觀看過的題材排序" : "依近期官方熱榜提供多元推薦"}
-        </p>
-      </section>
-
-      <section className="px-5" aria-labelledby="common-categories-title">
-        <button
-          type="button"
-          aria-expanded={!categoriesCollapsed}
-          aria-controls="common-categories-content"
-          onClick={toggleCategories}
-          className="mb-3 flex min-h-8 w-full items-center justify-between gap-3 text-left"
-        >
-          <h2 id="common-categories-title" className="font-serif text-lg font-semibold">
-            常用分類
-          </h2>
-          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-            {categoriesCollapsed ? "展開" : "收起"}
-            <ChevronDown
-              className={cn(
-                "size-4 transition-transform duration-300",
-                categoriesCollapsed && "-rotate-90",
-              )}
-            />
-          </span>
-        </button>
-        <div
-          id="common-categories-content"
-          className={cn(
-            "overflow-hidden transition-[max-height,opacity] duration-300 ease-out motion-reduce:transition-none",
-            categoriesCollapsed ? "max-h-0 opacity-0" : "max-h-[640px] opacity-100",
-          )}
-        >
-          <div className="grid grid-cols-2 gap-2.5 pb-1">
-            {works.length > 0 &&
-              [...new Set(works.flatMap((work) => work.categories))].map((category) => {
-                const count = works.filter((work) => work.categories.includes(category)).length;
-                return (
-                  <Link
-                    key={category}
-                    to="/library"
-                    search={{ category }}
-                    className="surface flex min-h-12 items-center justify-between gap-2 px-4 py-3 active:scale-[0.98]"
-                  >
-                    <span className="truncate font-serif text-[15px] font-semibold">
-                      {category}
-                    </span>
-                    <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">
-                      {count} 部
-                    </span>
-                  </Link>
-                );
-              })}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }
@@ -293,7 +346,15 @@ function RankingSection({
   );
 }
 
-function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
+function RankCard({
+  item,
+  works,
+  recommendationActions,
+}: {
+  item: RankedWork;
+  works: Work[];
+  recommendationActions?: { hide: () => void; downrank: () => void };
+}) {
   const owned = findWorkBySeriesId(works, item.seriesId);
   const content = (
     <>
@@ -320,7 +381,7 @@ function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
     </>
   );
   const className = "block w-[132px] min-w-0 shrink-0 text-left active:scale-[0.98]";
-  return owned ? (
+  const link = owned ? (
     <Link to="/work/$id" params={{ id: owned.id }} className={className}>
       {content}
     </Link>
@@ -333,6 +394,28 @@ function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
     >
       {content}
     </Link>
+  );
+  if (!recommendationActions) return link;
+  return (
+    <div className="w-[132px] shrink-0">
+      {link}
+      <div className="mt-1 flex flex-col items-start">
+        <button
+          type="button"
+          className="min-h-7 text-[10px] text-muted-foreground"
+          onClick={recommendationActions.hide}
+        >
+          不感興趣
+        </button>
+        <button
+          type="button"
+          className="min-h-7 text-[10px] text-muted-foreground"
+          onClick={recommendationActions.downrank}
+        >
+          不要再推薦這類
+        </button>
+      </div>
+    </div>
   );
 }
 
