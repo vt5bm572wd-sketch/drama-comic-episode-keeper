@@ -125,8 +125,7 @@ export function AiMemoryEditorDialog({
         <DialogHeader className="pr-6 text-left">
           <DialogTitle className="font-serif">編輯 AI 觀看記憶</DialogTitle>
           <DialogDescription>
-            每行一條；名場面使用「標題｜描述」。重新整理 AI
-            內容會覆蓋手動文字，但已收藏名場面仍會保留。
+            每行一條；名場面使用「標題｜描述」。重新整理會保留目前內容與已收藏名場面，並優先繼續尋找新的劇情與場景。
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
