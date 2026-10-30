@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { availableEpisodes, seasonPercent } from "@/lib/drama/domain";
@@ -72,50 +72,58 @@ export function EpisodeStepper({
           <ChevronRight />
         </Button>
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] gap-2">
-        <label className="text-[11px] text-muted-foreground">
-          直接輸入集數
-          <Input
-            className="mt-1"
-            type="number"
-            min={0}
-            max={availableEpisodes(season)}
-            value={direct}
-            onChange={(event) => setDirect(event.target.value)}
-            onBlur={() => {
-              const value = Number(direct);
-              if (Number.isFinite(value)) dramaStore.setProgress(work.id, season.id, value);
-              setDirect(
-                String(
-                  Math.min(
-                    Math.max(
-                      0,
-                      Number.isFinite(value) ? Math.floor(value) : season.watchedEpisodes,
+
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-center gap-1 py-1 text-xs text-muted-foreground">
+          快速操作
+          <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] gap-2">
+          <label className="text-[11px] text-muted-foreground">
+            直接輸入集數
+            <Input
+              className="mt-1"
+              type="number"
+              min={0}
+              max={availableEpisodes(season)}
+              value={direct}
+              onChange={(event) => setDirect(event.target.value)}
+              onBlur={() => {
+                const value = Number(direct);
+                if (Number.isFinite(value)) dramaStore.setProgress(work.id, season.id, value);
+                setDirect(
+                  String(
+                    Math.min(
+                      Math.max(
+                        0,
+                        Number.isFinite(value) ? Math.floor(value) : season.watchedEpisodes,
+                      ),
+                      availableEpisodes(season),
                     ),
-                    availableEpisodes(season),
                   ),
-                ),
-              );
-            }}
-          />
-        </label>
-        <label className="text-[11px] text-muted-foreground">
-          修改狀態
-          <NativeSelect
-            className="mt-1"
-            value={work.watchStatus === "dropped" ? "paused" : work.watchStatus}
-            onChange={(event) =>
-              dramaStore.update(work.id, { watchStatus: event.target.value as WatchStatus })
-            }
-          >
-            {WATCH_STATUS_ORDER.map((status) => (
-              <option key={status} value={status}>
-                {WATCH_STATUS_LABEL[status]}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-      </div>
+                );
+              }}
+            />
+          </label>
+          <label className="text-[11px] text-muted-foreground">
+            修改狀態
+            <NativeSelect
+              className="mt-1"
+              value={work.watchStatus === "dropped" ? "paused" : work.watchStatus}
+              onChange={(event) =>
+                dramaStore.update(work.id, { watchStatus: event.target.value as WatchStatus })
+              }
+            >
+              {WATCH_STATUS_ORDER.map((status) => (
+                <option key={status} value={status}>
+                  {WATCH_STATUS_LABEL[status]}
+                </option>
+              ))}
+            </NativeSelect>
+          </label>
+        </div>
+      </details>
+
       <Dialog open={completedOpen} onOpenChange={setCompletedOpen}>
         <DialogContent>
           <DialogHeader className="text-left">
