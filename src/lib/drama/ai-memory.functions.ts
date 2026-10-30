@@ -7,7 +7,7 @@ import {
   type AiMemoryServerResult,
 } from "./ai-memory-contract";
 
-const DEFAULT_MODEL = "gemini-3.8-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
 function promptFor(data: ReturnType<typeof aiMemoryGenerationInputSchema.parse>) {
   const sourceCount = data.officialSynopsis ? 1 : 0;
@@ -40,7 +40,11 @@ ${data.officialSynopsis || "未提供"}
 function safeProviderError(error: unknown) {
   if (!(error instanceof Error)) return "unknown";
   const status = "statusCode" in error ? String(error.statusCode) : "unknown";
-  return `${error.name} (status ${status})`;
+  const message = error.message
+    .replace(/[A-Za-z0-9_-]{30,}/g, "[redacted]")
+    .replace(/https?:\/\/\S+/g, "[url]")
+    .slice(0, 240);
+  return `${error.name} (status ${status}): ${message}`;
 }
 
 export const generateAiMemoryServer = createServerFn({ method: "POST" })
@@ -67,6 +71,8 @@ export const generateAiMemoryServer = createServerFn({ method: "POST" })
       const { output } = await generateText({
         model: google(model),
         output: Output.object({ schema: aiMemoryGeneratedSchema }),
+        abortSignal: AbortSignal.timeout(20_000),
+        maxRetries: 0,
         temperature: 0.1,
         prompt: promptFor(data),
       });

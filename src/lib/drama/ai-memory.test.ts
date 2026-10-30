@@ -124,13 +124,13 @@ describe("AI 觀看記憶", () => {
       },
       identity,
       NOW,
-      "google/gemini-3.8-flash",
+      "google/gemini-3.5-flash-lite",
     );
     expect(converted.keyPlots).toHaveLength(1);
     expect(converted.keyPlots[0]?.id).toBeTruthy();
     expect(converted.suggestedTags).toEqual(["久別重逢"]);
     expect(converted.identity).toEqual(identity);
-    expect(converted.model).toBe("google/gemini-3.8-flash");
+    expect(converted.model).toBe("google/gemini-3.5-flash-lite");
   });
 
   it("不同季分開保存，重新載入後仍存在", () => {
