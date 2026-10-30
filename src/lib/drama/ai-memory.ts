@@ -6,10 +6,38 @@ import type { AiMemory, AiMemoryItem, AiScene, Season, Work } from "./types";
 export type { AiMemoryGenerationInput } from "./ai-memory-contract";
 
 const accepted = (item: Pick<AiMemoryItem, "confidence" | "seasonVerified">) =>
-  item.seasonVerified && (item.confidence === "high" || item.confidence === "medium");
+  item.seasonVerified;
+
+function sceneTitleFromText(text: string, index: number) {
+  const cleaned = text.replace(/[。！？!?]+$/g, "").trim();
+  const firstClause = cleaned.split(/[，,；;：:]/)[0]?.trim();
+  if (firstClause && firstClause.length >= 4) return firstClause.slice(0, 36);
+  return `記憶場面 ${index + 1}`;
+}
+
+function backfillFamousScenes(memory: AiMemory): AiMemory {
+  if (memory.famousScenes.length || !memory.keyPlots.length) return memory;
+
+  const scenes: AiScene[] = memory.keyPlots
+    .filter(accepted)
+    .slice(0, 4)
+    .map((item, index) => ({
+      id: uid("scene"),
+      text: item.text,
+      title: sceneTitleFromText(item.text, index),
+      description: item.text,
+      confidence: item.confidence,
+      seasonVerified: item.seasonVerified,
+      sourceCount: item.sourceCount,
+      sourceSeason: item.sourceSeason,
+      verificationReason: `${item.verificationReason}；由已確認的關鍵劇情補為記憶場面`,
+    }));
+
+  return { ...memory, famousScenes: scenes };
+}
 
 export function sanitizeAiMemory(memory: AiMemory): AiMemory {
-  return {
+  const sanitized = {
     ...memory,
     keyPlots: memory.keyPlots.filter(accepted),
     famousScenes: memory.famousScenes.filter(accepted),
@@ -17,6 +45,7 @@ export function sanitizeAiMemory(memory: AiMemory): AiMemory {
       new Set(memory.suggestedTags.map((tag) => tag.trim()).filter(Boolean)),
     ),
   };
+  return backfillFamousScenes(sanitized);
 }
 
 export function mergeRegeneratedMemory(previous: AiMemory | undefined, next: AiMemory): AiMemory {
@@ -26,9 +55,14 @@ export function mergeRegeneratedMemory(previous: AiMemory | undefined, next: AiM
       .filter((scene) => scene.favorited)
       .flatMap((scene) => [scene.id, scene.title.trim()]),
   );
+
+  const candidate = next.famousScenes.length
+    ? next
+    : { ...next, famousScenes: previous.famousScenes };
+
   return sanitizeAiMemory({
-    ...next,
-    famousScenes: next.famousScenes.map((scene) => ({
+    ...candidate,
+    famousScenes: candidate.famousScenes.map((scene) => ({
       ...scene,
       favorited:
         scene.favorited || favoriteKeys.has(scene.id) || favoriteKeys.has(scene.title.trim()),
@@ -108,7 +142,7 @@ function localMemory(input: AiMemoryGenerationInput): AiMemory {
     .filter((value) => value.length >= 6)
     .slice(0, 8);
   const keyPlots = sentences.map((text) => verifiedItem(`${text}。`, input));
-  return {
+  return sanitizeAiMemory({
     summary:
       sentences.slice(0, 2).join("。") +
       (sentences.length ? "。" : `第 ${input.seasonNumber} 季尚未有足夠簡介可整理。`),
@@ -119,7 +153,7 @@ function localMemory(input: AiMemoryGenerationInput): AiMemory {
     generatedAt: new Date().toISOString(),
     model: "mock-v1",
     identity: input,
-  };
+  });
 }
 
 export function toAiMemory(
