@@ -8,6 +8,12 @@ export type { AiMemoryGenerationInput } from "./ai-memory-contract";
 const accepted = (item: Pick<AiMemoryItem, "confidence" | "seasonVerified">) =>
   item.seasonVerified;
 
+const normalizeMemoryText = (value: string) =>
+  value
+    .toLocaleLowerCase("zh-TW")
+    .replace(/[\s，。！？、；：,.!?;:'"「」『』（）()\-—_]/g, "")
+    .trim();
+
 function sceneTitleFromText(text: string, index: number) {
   const cleaned = text.replace(/[。！？!?]+$/g, "").trim();
   const firstClause = cleaned.split(/[，,；;：:]/)[0]?.trim();
@@ -20,7 +26,7 @@ function backfillFamousScenes(memory: AiMemory): AiMemory {
 
   const scenes: AiScene[] = memory.keyPlots
     .filter(accepted)
-    .slice(0, 4)
+    .slice(0, 5)
     .map((item, index) => ({
       id: uid("scene"),
       text: item.text,
@@ -48,34 +54,82 @@ export function sanitizeAiMemory(memory: AiMemory): AiMemory {
   return backfillFamousScenes(sanitized);
 }
 
-export function mergeRegeneratedMemory(previous: AiMemory | undefined, next: AiMemory): AiMemory {
-  if (!previous) return sanitizeAiMemory(next);
-  const favoriteKeys = new Set(
-    previous.famousScenes
+function mergeUniquePlots(previous: AiMemoryItem[], next: AiMemoryItem[]) {
+  const result: AiMemoryItem[] = [];
+  const seen = new Set<string>();
+  for (const item of [...previous, ...next]) {
+    const key = normalizeMemoryText(item.text);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
+}
+
+function mergeUniqueScenes(previous: AiScene[], next: AiScene[]) {
+  const result: AiScene[] = [];
+  const seen = new Set<string>();
+  const favorites = new Set(
+    previous
       .filter((scene) => scene.favorited)
-      .flatMap((scene) => [scene.id, scene.title.trim()]),
+      .flatMap((scene) => [normalizeMemoryText(scene.title), normalizeMemoryText(scene.text)]),
   );
 
-  const candidate = next.famousScenes.length
-    ? next
-    : { ...next, famousScenes: previous.famousScenes };
-
-  return sanitizeAiMemory({
-    ...candidate,
-    famousScenes: candidate.famousScenes.map((scene) => ({
+  for (const scene of [...previous, ...next]) {
+    const key = normalizeMemoryText(`${scene.title}${scene.description ?? ""}`);
+    const titleKey = normalizeMemoryText(scene.title);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push({
       ...scene,
       favorited:
-        scene.favorited || favoriteKeys.has(scene.id) || favoriteKeys.has(scene.title.trim()),
-    })),
+        scene.favorited || favorites.has(titleKey) || favorites.has(normalizeMemoryText(scene.text)),
+    });
+  }
+  return result;
+}
+
+export function mergeRegeneratedMemory(previous: AiMemory | undefined, next: AiMemory): AiMemory {
+  if (!previous) return sanitizeAiMemory(next);
+
+  return sanitizeAiMemory({
+    ...next,
+    // 「重新整理」是續挖，不是覆蓋：舊記憶保留，新找到的內容追加並去重。
+    keyPlots: mergeUniquePlots(previous.keyPlots, next.keyPlots),
+    famousScenes: mergeUniqueScenes(previous.famousScenes, next.famousScenes),
+    suggestedTags: Array.from(new Set([...previous.suggestedTags, ...next.suggestedTags])),
+    excludedItems: [
+      ...previous.excludedItems,
+      ...next.excludedItems.filter(
+        (candidate) =>
+          !previous.excludedItems.some(
+            (item) => normalizeMemoryText(item.text) === normalizeMemoryText(candidate.text),
+          ),
+      ),
+    ],
   });
 }
 
 export function seasonIdentity(work: Work, season: Season): AiMemoryGenerationInput {
+  const previous = season.aiMemory;
+  const contextParts = [
+    work.note?.trim() ? `作品備註：${work.note.trim()}` : "",
+    season.note?.trim() ? `本季備註：${season.note.trim()}` : "",
+    `觀看進度：${season.watchedEpisodes}/${season.totalEpisodes} 集`,
+  ].filter(Boolean);
+
   return {
-    workTitle: work.title,
+    workTitle: season.title?.trim() || season.originTitle?.trim() || work.title,
     seasonNumber: season.number,
     seriesId: season.source?.seriesId ?? work.source?.seriesId,
+    coverUrl: season.cover ?? work.cover ?? undefined,
     officialSynopsis: season.synopsis?.trim() || work.synopsis.trim(),
+    userContext: contextParts.join("\n"),
+    existingKeyPlots: previous?.keyPlots.map((item) => item.text) ?? [],
+    existingFamousScenes:
+      previous?.famousScenes.map((scene) =>
+        scene.description ? `${scene.title}：${scene.description}` : scene.title,
+      ) ?? [],
     mainCharacters: [],
   };
 }
@@ -140,7 +194,7 @@ function localMemory(input: AiMemoryGenerationInput): AiMemory {
     .split(/[。！？!?\n]+/)
     .map((value) => value.trim())
     .filter((value) => value.length >= 6)
-    .slice(0, 8);
+    .slice(0, 5);
   const keyPlots = sentences.map((text) => verifiedItem(`${text}。`, input));
   return sanitizeAiMemory({
     summary:
