@@ -13,6 +13,7 @@ import {
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { SeriesInfo } from "@/components/drama/SeriesInfo";
+import { ManualWatchMemory } from "@/components/drama/ManualWatchMemory";
 import { Chip, ChipRow } from "@/components/drama/Chip";
 import { ConfirmDialog } from "@/components/drama/ConfirmDialog";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
@@ -373,6 +374,8 @@ function WorkDetail({ work }: { work: Work }) {
             </div>
           )}
         </section>
+
+        {selected && <ManualWatchMemory workId={work.id} season={selected} />}
 
         {work.synopsis && (
           <InfoBlock title="劇情簡介">
