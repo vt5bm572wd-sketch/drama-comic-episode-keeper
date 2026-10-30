@@ -5,6 +5,10 @@ import type { AiMemory, AiMemoryItem, AiScene, Season, Work } from "./types";
 
 export type { AiMemoryGenerationInput } from "./ai-memory-contract";
 
+export class AiMemoryGenerationError extends Error {
+  constructor(message: string) { super(message); this.name = "AiMemoryGenerationError"; }
+}
+
 const accepted = (item: Pick<AiMemoryItem, "confidence" | "seasonVerified">) =>
   item.seasonVerified && item.confidence !== "low";
 
@@ -215,8 +219,10 @@ export async function generateAiMemory(work: Work, season: Season): Promise<AiMe
     try {
       const result = await generateAiMemoryServer({ data: input });
       if (result.ok) return toAiMemory(result.memory, input, result.generatedAt, result.model);
-    } catch {
-      // Server Function 本身失敗時仍使用本機備援，避免影響既有收藏資料。
+      throw new AiMemoryGenerationError(result.message);
+    } catch (error) {
+      if (error instanceof AiMemoryGenerationError) throw error;
+      throw new AiMemoryGenerationError("AI 服務連線失敗，請稍後再試；原有資料不變。");
     }
   }
   // Never present synopsis fragments or hard-coded scenes as verified AI research.
