@@ -7,13 +7,14 @@ import {
   type AiMemoryServerResult,
 } from "./ai-memory-contract";
 
-const DEFAULT_MODEL = "gemini-3.8-flash";
-const DEFAULT_SEARCH_MODEL = "gemini-3.8-flash";
+const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_SEARCH_MODEL = "gemini-2.5-flash";
 
 interface ResearchResult {
   dossier: string;
   sourceCount: number;
   searched: boolean;
+  errorCode?: "rate_limited" | "provider_unavailable";
 }
 
 function oldContent(data: ReturnType<typeof aiMemoryGenerationInputSchema.parse>) {
@@ -143,7 +144,7 @@ ${oldContent(data)}
     };
   } catch (error) {
     console.warn("AI memory web research unavailable", safeProviderError(error));
-    return { dossier: "", sourceCount: 0, searched: false };
+    return { dossier: "", sourceCount: 0, searched: false, errorCode: classifyProviderError(error) };
   }
 }
 
@@ -155,6 +156,12 @@ function safeProviderError(error: unknown) {
     .replace(/https?:\/\/\S+/g, "[url]")
     .slice(0, 240);
   return `${error.name} (status ${status}): ${message}`;
+}
+
+function classifyProviderError(error: unknown): "rate_limited" | "provider_unavailable" {
+  const status = error && typeof error === "object" && "statusCode" in error
+    ? Number(error.statusCode) : 0;
+  return status === 429 ? "rate_limited" : "provider_unavailable";
 }
 
 export const generateAiMemoryServer = createServerFn({ method: "POST" })
@@ -171,7 +178,16 @@ export const generateAiMemoryServer = createServerFn({ method: "POST" })
     const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
     try {
       const research = await researchSeason(data);
-      if (!research.searched && !data.userContext.trim()) {
+      if (research.errorCode) {
+        return {
+          ok: false,
+          code: research.errorCode,
+          message: research.errorCode === "rate_limited"
+            ? "Gemini 免費 API 已達額度或頻率限制，請稍後再試；原有記憶不變。"
+            : "Gemini 網路搜尋暫時失敗，請稍後再試；原有記憶不變。",
+        };
+      }
+      if (!research.searched) {
         return {
           ok: false,
           code: "insufficient_source",
@@ -198,8 +214,10 @@ export const generateAiMemoryServer = createServerFn({ method: "POST" })
       console.error("AI memory Gemini request failed", safeProviderError(error));
       return {
         ok: false,
-        code: "provider_unavailable",
-        message: "AI 暫時無法連線，已保留原資料。",
+        code: classifyProviderError(error),
+        message: classifyProviderError(error) === "rate_limited"
+          ? "Gemini 免費 API 已達額度或頻率限制，請稍後再試；原有記憶不變。"
+          : "Gemini 模型繁忙或請求逾時，請稍後再試；原有記憶不變。",
       };
     }
   });
