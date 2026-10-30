@@ -47,8 +47,8 @@ export function AiMemoryCard({ work, season }: { work: Work; season: Season }) {
       } else {
         toast.success(memory ? "已重新整理觀看記憶" : "已生成觀看記憶");
       }
-    } catch {
-      toast.error("觀看記憶生成失敗，收藏與原有資料沒有變更。");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "觀看記憶生成失敗，原有資料沒有變更。");
     } finally {
       setGenerating(false);
     }
