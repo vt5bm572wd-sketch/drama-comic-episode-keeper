@@ -107,29 +107,26 @@ export function HomeDiscovery({
     [preferences],
   );
 
-  const explorationTerms = useMemo(
-    () =>
-      Array.from({ length: 4 }, (_, index) => {
-        const termIndex = (batch * 4 + index) % DISCOVERY_TERMS.length;
-        return DISCOVERY_TERMS[termIndex];
-      }),
-    [batch],
-  );
+  const activeSearchTerm = useMemo(() => {
+    const terms = [...new Set([...preferenceTerms, ...DISCOVERY_TERMS])];
+    return terms[batch % terms.length] ?? DISCOVERY_TERMS[0];
+  }, [batch, preferenceTerms]);
 
-  const searchTerms = useMemo(
-    () => [...new Set([...preferenceTerms, ...explorationTerms])].slice(0, 7),
-    [explorationTerms, preferenceTerms],
-  );
+  const explorationTerms = useMemo(() => [activeSearchTerm], [activeSearchTerm]);
 
+  // Keep homepage discovery deliberately light: one Hongguo search at a time.
+  // Manual search uses the same upstream source and must remain responsive.
   const discoverySearches = useQueries({
-    queries: searchTerms.map((term) => ({
-      queryKey: ["hongguo-recommendation-search", term],
-      queryFn: () => searchOnline({ data: { query: term, page: 1 } }),
-      staleTime: 30 * 60_000,
-      gcTime: 60 * 60_000,
-      refetchOnWindowFocus: false,
-      retry: false,
-    })),
+    queries: [
+      {
+        queryKey: ["hongguo-recommendation-search", activeSearchTerm],
+        queryFn: () => searchOnline({ data: { query: activeSearchTerm, page: 1 } }),
+        staleTime: 30 * 60_000,
+        gcTime: 60 * 60_000,
+        refetchOnWindowFocus: false,
+        retry: false,
+      },
+    ],
   });
 
   const recommendations = useMemo(() => {
