@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AiMemoryCard } from "./AiMemoryCard";
 import { makeSeason } from "@/lib/drama/domain";
@@ -76,5 +76,19 @@ describe.each([375, 390, 393, 430])("AI Memory iPhone %ipx", (width) => {
     expect(details[0]?.open).toBe(true);
     expect(details.slice(1).every((item) => !item.open)).toBe(true);
     expect(screen.getByRole("button", { name: "重新整理" })).toHaveClass("h-11");
+    expect(screen.getByRole("button", { name: "編輯" })).toHaveClass("h-11");
+  });
+});
+
+describe("AI Memory 手動編輯", () => {
+  it("可從記憶卡片開啟完整編輯表單", () => {
+    render(<AiMemoryCard work={work} season={season} />);
+    fireEvent.click(screen.getByRole("button", { name: "編輯" }));
+    expect(screen.getByRole("dialog", { name: "編輯 AI 觀看記憶" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "一句話想起這一季" })).toHaveValue(memory.summary);
+    expect(screen.getByRole("textbox", { name: "名場面" })).toHaveValue(
+      "機場重逢｜顧景琛帶假女友出現",
+    );
+    expect(screen.getByRole("button", { name: "儲存觀看記憶" })).toBeInTheDocument();
   });
 });

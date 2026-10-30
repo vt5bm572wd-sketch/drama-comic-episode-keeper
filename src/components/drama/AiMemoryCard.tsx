@@ -1,10 +1,11 @@
-import { ChevronDown, Heart, RefreshCw, Sparkles } from "lucide-react";
+import { ChevronDown, Heart, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { generateAiMemory } from "@/lib/drama/ai-memory";
 import { dramaStore } from "@/lib/drama/store";
 import type { Season, Work } from "@/lib/drama/types";
+import { AiMemoryEditorDialog } from "./AiMemoryEditorDialog";
 
 function MemorySection({
   title,
@@ -29,6 +30,7 @@ function MemorySection({
 export function AiMemoryCard({ work, season }: { work: Work; season: Season }) {
   const memory = season.aiMemory;
   const [generating, setGenerating] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   async function generate() {
     setGenerating(true);
@@ -54,16 +56,27 @@ export function AiMemoryCard({ work, season }: { work: Work; season: Season }) {
           ✨ AI 觀看記憶
         </h2>
         {memory && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-11 shrink-0"
-            disabled={generating}
-            onClick={generate}
-          >
-            <RefreshCw className={generating ? "animate-spin" : ""} />
-            重新整理
-          </Button>
+          <div className="flex shrink-0 items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-11 px-2"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil />
+              編輯
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-11 px-2"
+              disabled={generating}
+              onClick={generate}
+            >
+              <RefreshCw className={generating ? "animate-spin" : ""} />
+              重新整理
+            </Button>
+          </div>
         )}
       </div>
 
@@ -208,6 +221,14 @@ export function AiMemoryCard({ work, season }: { work: Work; season: Season }) {
             </MemorySection>
           )}
         </div>
+      )}
+      {memory && (
+        <AiMemoryEditorDialog
+          work={work}
+          season={season}
+          open={editing}
+          onOpenChange={setEditing}
+        />
       )}
     </section>
   );

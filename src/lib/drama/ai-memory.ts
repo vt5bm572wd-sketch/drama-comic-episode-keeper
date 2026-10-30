@@ -6,7 +6,7 @@ import type { AiMemory, AiMemoryItem, AiScene, Season, Work } from "./types";
 export type { AiMemoryGenerationInput } from "./ai-memory-contract";
 
 const accepted = (item: Pick<AiMemoryItem, "confidence" | "seasonVerified">) =>
-  item.confidence === "high" || (item.confidence === "medium" && item.seasonVerified);
+  item.seasonVerified && (item.confidence === "high" || item.confidence === "medium");
 
 export function sanitizeAiMemory(memory: AiMemory): AiMemory {
   return {

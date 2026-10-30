@@ -77,7 +77,15 @@ function work(): Work {
 
 describe("AI 觀看記憶", () => {
   it("低可信或未通過規則的正式內容會被過濾", () => {
-    expect(sanitizeAiMemory(memory()).keyPlots.map((item) => item.id)).toEqual(["high"]);
+    const target = memory();
+    target.keyPlots.push({
+      id: "unverified-high",
+      text: "高可信但季數未確認",
+      confidence: "high",
+      seasonVerified: false,
+      sourceCount: 2,
+    });
+    expect(sanitizeAiMemory(target).keyPlots.map((item) => item.id)).toEqual(["high"]);
   });
 
   it("《冰冷重遇》假資料只寫入第一季身份", async () => {
