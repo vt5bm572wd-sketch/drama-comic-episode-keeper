@@ -2,7 +2,7 @@ import { ChevronDown, Heart, Pencil, RefreshCw, Sparkles } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { generateAiMemory } from "@/lib/drama/ai-memory";
+import { generateAiMemory, mergeRegeneratedMemory } from "@/lib/drama/ai-memory";
 import { dramaStore } from "@/lib/drama/store";
 import type { Season, Work } from "@/lib/drama/types";
 import { AiMemoryEditorDialog } from "./AiMemoryEditorDialog";
@@ -36,9 +36,14 @@ export function AiMemoryCard({ work, season }: { work: Work; season: Season }) {
     setGenerating(true);
     try {
       const next = await generateAiMemory(work, season);
-      if (!dramaStore.setAiMemory(work.id, season.id, next)) throw new Error("save failed");
       if (next.model === "mock-v1") {
-        toast.info("AI 暫時無法連線，已用官方簡介整理。原有資料未受影響。");
+        toast.info("目前找不到可靠的完整劇情，請使用編輯功能手動補充；原有資料不會被覆蓋。");
+        if (memory) return;
+      }
+      const merged = mergeRegeneratedMemory(memory, next);
+      if (!dramaStore.setAiMemory(work.id, season.id, merged)) throw new Error("save failed");
+      if (next.model === "mock-v1") {
+        toast.info("資料不足：僅保留簡介提示，請手動補充具體場景。");
       } else {
         toast.success(memory ? "已重新整理觀看記憶" : "已生成觀看記憶");
       }
