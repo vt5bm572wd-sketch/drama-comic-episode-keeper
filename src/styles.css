@@ -242,7 +242,8 @@
 }
 
 @utility poster-fade {
-  background-image: var(--gradient-poster-fade);
+  background-image: none;
+  background-color: var(--color-background);
 }
 
 @utility no-scrollbar {
