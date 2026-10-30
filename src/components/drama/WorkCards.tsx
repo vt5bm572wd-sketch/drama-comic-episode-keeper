@@ -45,8 +45,8 @@ export function PosterCard({
       <p
         className={
           showUnread && unread > 0
-            ? "mt-0.5 truncate text-sm font-medium"
-            : "mt-2 truncate text-sm font-medium"
+            ? "mt-0.5 truncate font-serif text-sm font-semibold"
+            : "mt-2 truncate font-serif text-sm font-semibold"
         }
       >
         {work.title}
