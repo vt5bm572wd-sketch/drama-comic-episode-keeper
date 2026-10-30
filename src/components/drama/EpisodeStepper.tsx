@@ -36,18 +36,20 @@ export function EpisodeStepper({
 
   return (
     <div className="space-y-2.5">
-      <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span className="min-w-0 truncate text-muted-foreground">
-          {work.seasons.length > 1 && <>第 {season.number} 季 · </>}
-          已看{" "}
-          <span className="font-semibold text-foreground tabular-nums">
-            {season.watchedEpisodes}
+      {!compact && (
+        <div className="flex items-baseline justify-between gap-2 text-sm">
+          <span className="min-w-0 truncate text-muted-foreground">
+            {work.seasons.length > 1 && <>第 {season.number} 季 · </>}
+            已看{" "}
+            <span className="font-semibold text-foreground tabular-nums">
+              {season.watchedEpisodes}
+            </span>
+            {" / "}
+            <span className="tabular-nums">{availableEpisodes(season)}</span> 集
           </span>
-          {" / "}
-          <span className="tabular-nums">{availableEpisodes(season)}</span> 集
-        </span>
-        <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">{percent}%</span>
-      </div>
+          <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">{percent}%</span>
+        </div>
+      )}
       <ProgressBar value={percent} label={`第 ${season.number} 季觀看進度`} />
       <div className="grid grid-cols-2 gap-2">
         <Button
