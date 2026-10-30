@@ -49,6 +49,11 @@ ${oldContent(data)}
 【本輪網路研究】
 ${research.searched ? research.dossier : "本輪沒有取得網路搜尋資料。"}
 
+【完整劇情規則】
+使用者不介意劇透。涵蓋整季與結局，不受觀看進度限制；但嚴格核對本季身份，不得混入其他季。
+名場面採具體事件與可查證的經典原句混合。無法證實原句時不可使用引號偽裝台詞。
+沒有可核實的具體場景時 famousScenes 必須為空，不可把 keyPlots 或官方簡介改寫成場景。
+
 【最重要規則：不要原地打轉】
 1. 這次是「續挖新內容」，不是把上一版換句話說。
 2. 優先輸出上一版沒有出現過的事件、轉折、互動與名場面。
@@ -65,14 +70,14 @@ ${research.searched ? research.dossier : "本輪沒有取得網路搜尋資料�
 【可信度】
 1. high：官方資料直接明載，或至少兩個獨立來源一致。
 2. medium：單一公開來源有具體描述，且作品身份與本季吻合。
-3. low：很可能屬於本季、具記憶價值，但季數或細節尚未完全確認；可保留，不要因為 low 就刪除。
+3. low：資料不足或無法核實的候選事件；不得放進正式 keyPlots 或 famousScenes，改列 excludedItems。
 4. 不得虛構來源、人物、集數、事件或場景。
 5. sourceCount 不得虛增；目前來源上限 ${sourceCount}。
 
 【內容要求】
 1. summary：1～2 句，快速想起整季主線。
 2. keyPlots：本輪目標約 5 條，優先新事件，依大致時間順序。
-3. famousScenes：本輪目標約 5 個，必須是具體、有畫面的場景；偏好甜、虐、親密、衝突、告白、醉酒、親吻、錄音、比賽、救援、身份揭露、強烈反轉等。
+3. famousScenes：最多約 5 個，資料不足可以 0 個，必須是具體、有畫面的場景；偏好甜、虐、親密、衝突、告白、醉酒、親吻、錄音、比賽、救援、身份揭露、強烈反轉等。
 4. 名場面格式要能讓人一眼想起畫面，title 短、description 補一句具體動作或互動。
 5. 不需要整理角色欄位；人物只用來驗證作品身份。
 6. 若能確認季末／結局狀態，把它放進最後一條 keyPlot。
@@ -105,6 +110,8 @@ async function researchSeason(
 使用者備註／觀看資訊：${data.userContext || "未提供"}
 
 ${oldContent(data)}
+
+搜尋策略：先搜尋完整劇名、季數與 seriesId；資料不足時再搜尋別名、角色姓名、分集劇情、結局、討論與經典台詞，交叉核對同一作品。若仍無具體事件，明確寫出「資料不足」，不要補造。
 
 搜尋範圍：
 1. 紅果官方作品頁、官方分享頁、官方簡介、同 seriesId 公開資料。
@@ -164,11 +171,11 @@ export const generateAiMemoryServer = createServerFn({ method: "POST" })
     const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
     try {
       const research = await researchSeason(data);
-      if (!data.officialSynopsis.trim() && !data.userContext.trim() && !research.searched) {
+      if (!research.searched && !data.userContext.trim()) {
         return {
           ok: false,
           code: "insufficient_source",
-          message: "目前找不到足夠的本季劇情資料，已保留原資料。",
+          message: "公開劇情搜尋不足，請手動補充名場面或觀看筆記；原資料已保留。",
         };
       }
 
