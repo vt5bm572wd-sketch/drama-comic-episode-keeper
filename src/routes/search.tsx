@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
@@ -14,6 +14,9 @@ import { lookupHongguoWork } from "@/lib/drama/hongguo.functions";
 import { buildSourceUpdate } from "@/lib/drama/source-update";
 import { dramaStore, useWorks } from "@/lib/drama/store";
 import type { Work } from "@/lib/drama/types";
+
+const LAST_SEARCH_KEY = "nina-drama:last-search:v21";
+const LOCAL_RESULTS_COLLAPSED_KEY = "nina-drama:local-results-collapsed:v21";
 
 export const Route = createFileRoute("/search")({
   validateSearch: (s: Record<string, unknown>): { q?: string | undefined } => ({
@@ -39,6 +42,22 @@ function SearchPage() {
   const { q = "" } = Route.useSearch();
   const navigate = Route.useNavigate();
   const works = useWorks();
+  const [localResultsCollapsed, setLocalResultsCollapsed] = useState(false);
+
+  useEffect(() => {
+    const collapsed = window.localStorage.getItem(LOCAL_RESULTS_COLLAPSED_KEY) === "1";
+    setLocalResultsCollapsed(collapsed);
+
+    if (q) {
+      window.sessionStorage.setItem(LAST_SEARCH_KEY, q);
+      return;
+    }
+
+    const savedQuery = window.sessionStorage.getItem(LAST_SEARCH_KEY)?.trim();
+    if (savedQuery) {
+      void navigate({ to: ".", search: { q: savedQuery }, replace: true });
+    }
+  }, [navigate, q]);
 
   useEffect(() => {
     if (!q) return;
@@ -55,9 +74,14 @@ function SearchPage() {
   }, [q]);
 
   const setQ = (value: string) => {
-    if (!value && q) {
-      window.sessionStorage.removeItem(`nina-drama:search:v21:${q}`);
-      window.sessionStorage.removeItem(`nina-drama:search-scroll:v21:${q}`);
+    if (value) {
+      window.sessionStorage.setItem(LAST_SEARCH_KEY, value);
+    } else {
+      window.sessionStorage.removeItem(LAST_SEARCH_KEY);
+      if (q) {
+        window.sessionStorage.removeItem(`nina-drama:search:v21:${q}`);
+        window.sessionStorage.removeItem(`nina-drama:search-scroll:v21:${q}`);
+      }
     }
     return navigate({
       to: ".",
@@ -65,6 +89,15 @@ function SearchPage() {
       replace: true,
     });
   };
+
+  const toggleLocalResults = () => {
+    setLocalResultsCollapsed((collapsed) => {
+      const next = !collapsed;
+      window.localStorage.setItem(LOCAL_RESULTS_COLLAPSED_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
+
   const results = works ? searchWorks(works, q) : [];
 
   return (
@@ -105,21 +138,38 @@ function SearchPage() {
         ) : (
           <div className="space-y-8 pb-safe">
             <section aria-labelledby="local-results-heading">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 id="local-results-heading" className="font-serif text-lg font-semibold">
-                  我的收藏
-                </h2>
-                <span className="text-xs text-subtle-foreground">{results.length} 部</span>
-              </div>
-              {results.length > 0 ? (
-                <div className="grid grid-cols-3 gap-3">
-                  {results.map((w) => (
-                    <LocalSearchResult key={w.id} work={w} />
-                  ))}
+              <button
+                type="button"
+                className="mb-3 flex w-full items-center justify-between gap-3 rounded-lg text-left active:opacity-70"
+                aria-expanded={!localResultsCollapsed}
+                aria-controls="local-results-content"
+                onClick={toggleLocalResults}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <h2 id="local-results-heading" className="font-serif text-lg font-semibold">
+                    我的收藏
+                  </h2>
+                  <span className="text-xs text-subtle-foreground">{results.length} 部</span>
                 </div>
-              ) : (
-                <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-                  收藏中沒有「{q}」，仍會繼續搜尋紅果線上作品。
+                {localResultsCollapsed ? (
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+                )}
+              </button>
+              {!localResultsCollapsed && (
+                <div id="local-results-content">
+                  {results.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      {results.map((w) => (
+                        <LocalSearchResult key={w.id} work={w} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                      收藏中沒有「{q}」，仍會繼續搜尋紅果線上作品。
+                    </div>
+                  )}
                 </div>
               )}
             </section>
