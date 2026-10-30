@@ -7,7 +7,7 @@ import {
 } from "./domain";
 import type { OnlineWork } from "./hongguo-data";
 import type { Season, Work } from "./types";
-import { parseHeat, recommendationScore, sortOnlineByHeat } from "./v21";
+import { parseHeat, sortOnlineByHeat } from "./v21";
 
 const season = (patch: Partial<Season> & Pick<Season, "id" | "number">): Season => ({
   totalEpisodes: 20,
@@ -113,7 +113,7 @@ describe("V2.1 tracking rules", () => {
   });
 });
 
-describe("V2.1 online ordering and recommendation feedback", () => {
+describe("V2.1 online ordering", () => {
   it("parses Chinese heat units", () => {
     expect(parseHeat("3726萬熱度")).toBe(37_260_000);
     expect(parseHeat("1.2億")).toBe(120_000_000);
@@ -134,17 +134,5 @@ describe("V2.1 online ordering and recommendation feedback", () => {
     expect(
       sortOnlineByHeat([online("c", "3萬"), online("d", "3萬")]).map((x) => x.seriesId),
     ).toEqual(["c", "d"]);
-  });
-
-  it("strongly downranks unwanted tags", () => {
-    const prefs = new Map([
-      ["霸總", 8],
-      ["甜寵", 5],
-    ]);
-    expect(
-      recommendationScore(["霸總"], prefs, { hiddenSeriesIds: [], downrankedTags: ["霸總"] }),
-    ).toBeLessThan(
-      recommendationScore(["甜寵"], prefs, { hiddenSeriesIds: [], downrankedTags: ["霸總"] }),
-    );
   });
 });

@@ -1,15 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  Film,
-  GripVertical,
-  Pencil,
-  Plus,
-  Search,
-} from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { ChevronRight, Film, Plus, Search } from "lucide-react";
 import { AddFab } from "@/components/drama/AddFab";
 import { CategoryManager } from "@/components/drama/CategoryManager";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
@@ -20,18 +10,12 @@ import { Button } from "@/components/ui/button";
 import {
   availableEpisodes,
   computeStats,
-  newlyAddedSeason,
   newlyAvailableSeasons,
   recentlyAdded,
   recentlyWatched,
 } from "@/lib/drama/domain";
 import { dramaStore, useWorks } from "@/lib/drama/store";
 import type { Work } from "@/lib/drama/types";
-import {
-  DEFAULT_HOME_SECTIONS,
-  type HomeSectionId,
-  type HomeSectionPreference,
-} from "@/lib/drama/v21";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -100,119 +84,9 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
     )
     .sort((a, b) => (a.updateDate ?? "").localeCompare(b.updateDate ?? ""))
     .slice(0, 10);
-  const announced = works.filter((work) => !work.updateDate && work.seriesStatus === "pending");
   const newEpisodes = works.filter((work) => newlyAvailableSeasons(work).length > 0);
-  const newSeasons = works.filter((work) => !!newlyAddedSeason(work));
-  const [editing, setEditing] = useState(false);
-  const [sections, setSections] = useState<HomeSectionPreference[]>(DEFAULT_HOME_SECTIONS);
-
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(
-        window.localStorage.getItem("nina-drama:home-sections:v21") ?? "null",
-      );
-      if (Array.isArray(stored)) {
-        const known = new Map(stored.map((item: HomeSectionPreference) => [item.id, item]));
-        setSections(
-          DEFAULT_HOME_SECTIONS.map((item) => known.get(item.id) ?? item).sort(
-            (a, b) =>
-              stored.findIndex((x: HomeSectionPreference) => x.id === a.id) -
-              stored.findIndex((x: HomeSectionPreference) => x.id === b.id),
-          ),
-        );
-      }
-    } catch {
-      // Keep defaults when storage is unavailable.
-    }
-  }, []);
-  const saveSections = (next: HomeSectionPreference[]) => {
-    setSections(next);
-    window.localStorage.setItem("nina-drama:home-sections:v21", JSON.stringify(next));
-  };
-  const move = (id: HomeSectionId, direction: -1 | 1) => {
-    const index = sections.findIndex((item) => item.id === id);
-    const target = index + direction;
-    if (index < 0 || target < 0 || target >= sections.length) return;
-    const next = [...sections];
-    [next[index], next[target]] = [next[target]!, next[index]!];
-    saveSections(next);
-  };
-
-  const content: Record<HomeSectionId, ReactNode> = {
-    stats: (
-      <div className="grid grid-cols-3 gap-2.5 px-5">
-        <StatCard label="收藏作品" value={stats.total} to="/library" />
-        <StatCard label="追劇中" value={stats.watching} to="/watching" tab="watching" highlight />
-        <StatCard label="已看完" value={stats.completed} to="/watching" tab="completed" />
-      </div>
-    ),
-    continue: (
-      <Section title="繼續觀看">
-        {watched.length ? (
-          <PosterRow works={watched} showProgress showUnread />
-        ) : (
-          <p className="rounded-xl bg-card px-4 py-6 text-center text-sm text-muted-foreground">
-            還沒有觀看紀錄。
-          </p>
-        )}
-      </Section>
-    ),
-    newEpisodes: newEpisodes.length ? (
-      <Section title="新集待看">
-        <NewEpisodesRow works={newEpisodes} />
-      </Section>
-    ) : null,
-    newSeason: newSeasons.length ? (
-      <Section title="新季來了">
-        <NewSeasonRow works={newSeasons} />
-      </Section>
-    ) : null,
-    upcoming: upcoming.length ? (
-      <Section title="即將更新">
-        <UpcomingRow works={upcoming} />
-      </Section>
-    ) : null,
-    announced: announced.length ? (
-      <Section title="已官宣／待定">
-        <PosterRow works={announced} />
-      </Section>
-    ) : null,
-    recommendations: <HomeDiscovery works={works} only="recommendations" />,
-    comicRanking: <HomeDiscovery works={works} only="comicRanking" />,
-    aiRanking: <HomeDiscovery works={works} only="aiRanking" />,
-    recent: (
-      <Section
-        title="最近收藏"
-        action={
-          <Link
-            to="/library"
-            search={{ sort: "created" }}
-            className="flex items-center text-xs text-muted-foreground"
-          >
-            全部 <ChevronRight className="size-4" />
-          </Link>
-        }
-      >
-        <PosterRow works={added} showProgress />
-      </Section>
-    ),
-    categories: (
-      <>
-        <HomeDiscovery works={works} only="categories" />
-        <CategoryManager works={works} />
-      </>
-    ),
-  };
-
   return (
     <div className="space-y-9">
-      <div className="flex justify-end px-5">
-        <Button size="sm" variant="ghost" onClick={() => setEditing((value) => !value)}>
-          <Pencil />
-          首頁編輯
-        </Button>
-      </div>
-
       {works.length === 0 && (
         <EmptyState
           icon={Film}
@@ -235,121 +109,55 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
         </div>
       )}
 
-      {editing && <HomeEditor sections={sections} onChange={saveSections} onMove={move} />}
-      {sections
-        .filter((item) => item.enabled)
-        .map((item) =>
-          item.collapsed ? (
-            <button
-              key={item.id}
-              className="mx-5 flex w-[calc(100%-2.5rem)] items-center justify-between rounded-xl bg-card px-4 py-3 text-sm"
-              onClick={() =>
-                saveSections(
-                  sections.map((x) => (x.id === item.id ? { ...x, collapsed: false } : x)),
-                )
-              }
-            >
-              <span>{HOME_SECTION_LABEL[item.id]}</span>
-              <ChevronDown className="size-4" />
-            </button>
-          ) : (
-            <div key={item.id}>{content[item.id]}</div>
-          ),
+      <div className="grid grid-cols-3 gap-2.5 px-5">
+        <StatCard label="收藏作品" value={stats.total} to="/library" />
+        <StatCard label="追劇中" value={stats.watching} to="/watching" tab="watching" highlight />
+        <StatCard label="已看完" value={stats.completed} to="/watching" tab="completed" />
+      </div>
+
+      <Section title="繼續觀看">
+        {watched.length ? (
+          <PosterRow works={watched} showProgress showUnread />
+        ) : (
+          <p className="rounded-xl bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+            還沒有觀看紀錄。
+          </p>
         )}
-    </div>
-  );
-}
+      </Section>
 
-const HOME_SECTION_LABEL: Record<HomeSectionId, string> = {
-  stats: "我的追劇概況",
-  continue: "繼續觀看",
-  newEpisodes: "新集待看",
-  newSeason: "新季來了",
-  upcoming: "即將更新",
-  announced: "已官宣／待定",
-  recommendations: "猜你喜歡",
-  comicRanking: "漫劇熱榜",
-  aiRanking: "AI 劇熱榜",
-  recent: "最近收藏",
-  categories: "常用分類",
-};
+      {newEpisodes.length > 0 && (
+        <Section title="新集待看">
+          <NewEpisodesRow works={newEpisodes} />
+        </Section>
+      )}
 
-function HomeEditor({
-  sections,
-  onChange,
-  onMove,
-}: {
-  sections: HomeSectionPreference[];
-  onChange: (value: HomeSectionPreference[]) => void;
-  onMove: (id: HomeSectionId, direction: -1 | 1) => void;
-}) {
-  return (
-    <div className="surface mx-5 divide-y divide-border overflow-hidden">
-      <p className="px-4 py-3 text-xs text-muted-foreground">
-        調整順序、顯示與收合；設定會保存在這台 iPhone。
-      </p>
-      {sections.map((item, index) => (
-        <div
-          key={item.id}
-          draggable
-          onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => {
-            const from = event.dataTransfer.getData("text/plain") as HomeSectionId;
-            const fromIndex = sections.findIndex((x) => x.id === from);
-            if (fromIndex < 0) return;
-            const next = [...sections];
-            const [moved] = next.splice(fromIndex, 1);
-            next.splice(index, 0, moved!);
-            onChange(next);
-          }}
-          className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2"
-        >
-          <GripVertical className="size-4 text-subtle-foreground" />
-          <span className="text-sm">{HOME_SECTION_LABEL[item.id]}</span>
-          <div className="flex">
-            <Button
-              size="icon"
-              variant="ghost"
-              disabled={index === 0}
-              onClick={() => onMove(item.id, -1)}
-            >
-              <ChevronUp />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              disabled={index === sections.length - 1}
-              onClick={() => onMove(item.id, 1)}
-            >
-              <ChevronDown />
-            </Button>
-            <Button
-              size="sm"
-              variant={item.enabled ? "secondary" : "ghost"}
-              onClick={() =>
-                onChange(
-                  sections.map((x) => (x.id === item.id ? { ...x, enabled: !x.enabled } : x)),
-                )
-              }
-            >
-              {item.enabled ? "顯示" : "隱藏"}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={!item.enabled}
-              onClick={() =>
-                onChange(
-                  sections.map((x) => (x.id === item.id ? { ...x, collapsed: !x.collapsed } : x)),
-                )
-              }
-            >
-              {item.collapsed ? "展開" : "收合"}
-            </Button>
-          </div>
-        </div>
-      ))}
+      {upcoming.length > 0 && (
+        <Section title="即將更新">
+          <UpcomingRow works={upcoming} />
+        </Section>
+      )}
+
+      <HomeDiscovery works={works} only="recommendations" />
+      <HomeDiscovery works={works} only="comicRanking" />
+      <HomeDiscovery works={works} only="aiRanking" />
+
+      <Section
+        title="最近收藏"
+        action={
+          <Link
+            to="/library"
+            search={{ sort: "created" }}
+            className="flex items-center text-xs text-muted-foreground"
+          >
+            全部 <ChevronRight className="size-4" />
+          </Link>
+        }
+      >
+        <PosterRow works={added} showProgress />
+      </Section>
+
+      <HomeDiscovery works={works} only="categories" />
+      <CategoryManager works={works} />
     </div>
   );
 }
@@ -432,23 +240,6 @@ function NewEpisodesRow({ works }: { works: Work[] }) {
               <Plus />
               ＋1 集
             </Button>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function NewSeasonRow({ works }: { works: Work[] }) {
-  return (
-    <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
-      {works.map((work) => {
-        const season = newlyAddedSeason(work)!;
-        return (
-          <div key={`${work.id}-${season.id}`} className="w-[112px] shrink-0">
-            <PosterCard work={work} />
-            <p className="mt-1 text-[10px] font-semibold tracking-wider text-primary">NEW SEASON</p>
-            <p className="text-[11px] text-muted-foreground">第 {season.number} 季待觀看</p>
           </div>
         );
       })}
