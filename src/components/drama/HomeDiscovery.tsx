@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, ChevronRight, Flame, RefreshCw, Sparkles } from "lucide-react";
@@ -6,16 +6,19 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { findWorkBySeriesId } from "@/lib/drama/link-import";
 import { tagsToCategories } from "@/lib/drama/hongguo-data";
-import { getHongguoRanking } from "@/lib/drama/hongguo.functions";
-import type { RankedWork, RankingKind } from "@/lib/drama/hongguo-data";
+import { getHongguoRanking, searchHongguo } from "@/lib/drama/hongguo.functions";
+import type { OnlineWork, RankedWork, RankingKind } from "@/lib/drama/hongguo-data";
 import type { Work } from "@/lib/drama/types";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_COLLAPSED_KEY = "nina-drama-home-categories-collapsed";
+const DISCOVERY_TERMS = ["甜寵", "重生", "暗戀", "穿書", "豪門", "追妻", "先婚後愛", "救贖"];
 const RANKING_URL: Record<RankingKind, string> = {
   comic: "https://hongguoduanju.com/rank/hot-comic-drama",
   ai: "https://hongguoduanju.com/rank/hot-ai-drama",
 };
+
+type RecommendationItem = OnlineWork & { rank?: number };
 
 export function HomeDiscovery({
   works,
@@ -25,6 +28,7 @@ export function HomeDiscovery({
   only?: "comicRanking" | "aiRanking" | "recommendations" | "categories";
 }) {
   const getRanking = useServerFn(getHongguoRanking);
+  const searchOnline = useServerFn(searchHongguo);
   const [batch, setBatch] = useState(0);
   const [comicRefresh, setComicRefresh] = useState(0);
   const [aiRefresh, setAiRefresh] = useState(0);
@@ -63,10 +67,44 @@ export function HomeDiscovery({
     return counts;
   }, [works]);
 
+  const preferenceTerms = useMemo(
+    () =>
+      [...preferences.entries()]
+        .filter(([term]) => term.length >= 2 && term.length <= 12)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([term]) => term),
+    [preferences],
+  );
+
+  const explorationTerm = DISCOVERY_TERMS[batch % DISCOVERY_TERMS.length];
+  const searchTerms = useMemo(
+    () => [...new Set([...preferenceTerms, explorationTerm])].slice(0, 5),
+    [explorationTerm, preferenceTerms],
+  );
+
+  const discoverySearches = useQueries({
+    queries: searchTerms.flatMap((term) =>
+      [1, 2].map((page) => ({
+        queryKey: ["hongguo-recommendation-search", term, page],
+        queryFn: () => searchOnline({ data: { query: term, page } }),
+        staleTime: 30 * 60_000,
+        gcTime: 60 * 60_000,
+        refetchOnWindowFocus: false,
+        retry: false,
+      })),
+    ),
+  });
+
   const recommendations = useMemo(() => {
     const comicItems = comic.data?.ok ? comic.data.items : [];
     const aiItems = ai.data?.ok ? ai.data.items : [];
-    const pool = uniqueRanked(interleaveRankings(comicItems, aiItems));
+    const rankingPool: RecommendationItem[] = uniqueOnline(interleaveRankings(comicItems, aiItems));
+    const searchedPool: RecommendationItem[] = uniqueOnline(
+      discoverySearches.flatMap((query) => (query.data?.ok ? query.data.items : [])),
+    );
+    const pool = uniqueOnline([...searchedPool, ...rankingPool]);
+
     const completedIds = new Set(
       works
         .filter((w) => w.watchStatus === "completed")
@@ -76,24 +114,51 @@ export function HomeDiscovery({
     const completedTitles = new Set(
       works.filter((w) => w.watchStatus === "completed").map((w) => normalizeTitle(w.title)),
     );
+    const ownedIds = new Set(works.map((w) => w.source?.seriesId).filter(Boolean));
+    const ownedTitles = new Set(works.map((w) => normalizeTitle(w.title)));
+
     const eligible = pool.filter(
       (item) =>
         !completedIds.has(item.seriesId) && !completedTitles.has(normalizeTitle(item.title)),
     );
-    const ranked = eligible.map((item) => ({
-      item,
-      score: [...item.tags, ...tagsToCategories(item.tags)].reduce(
+
+    const ranked = eligible.map((item, index) => {
+      const tagScore = [...item.tags, ...tagsToCategories(item.tags)].reduce(
         (score, tag) => score + (preferences.get(tag.toLocaleLowerCase()) ?? 0),
         0,
-      ),
-    }));
-    ranked.sort((a, b) => b.score - a.score || a.item.rank - b.item.rank);
-    const sorted = ranked.map(({ item }) => item);
-    if (!sorted.length) return [];
-    const offset = (batch * 8) % sorted.length;
-    const rotated = [...sorted.slice(offset), ...sorted.slice(0, offset)];
-    return rotated.slice(0, Math.min(8, rotated.length));
-  }, [ai.data, batch, comic.data, preferences, works]);
+      );
+      const preferenceMatch = preferenceTerms.some((term) =>
+        [item.title, ...item.tags].some((value) => value.toLocaleLowerCase().includes(term)),
+      );
+      const rankingBoost = typeof item.rank === "number" ? Math.max(0, 24 - item.rank) / 12 : 0;
+      const ownedPenalty = ownedIds.has(item.seriesId) || ownedTitles.has(normalizeTitle(item.title)) ? 4 : 0;
+      const explorationBoost = [item.title, ...item.tags].some((value) =>
+        value.toLocaleLowerCase().includes(explorationTerm.toLocaleLowerCase()),
+      )
+        ? 1.5
+        : 0;
+      return {
+        item,
+        score: tagScore * 4 + (preferenceMatch ? 5 : 0) + rankingBoost + explorationBoost - ownedPenalty,
+        tie: seededNumber(`${item.seriesId}:${batch}:${index}`),
+      };
+    });
+
+    ranked.sort((a, b) => b.score - a.score || b.tie - a.tie);
+    if (!ranked.length) return [];
+
+    // Keep recommendations relevant while still changing meaningfully between refreshes.
+    const top = ranked.slice(0, Math.min(36, ranked.length));
+    const shuffled = seededShuffle(top, batch + 17);
+    const previousWindow = new Set(
+      seededShuffle(top, Math.max(0, batch - 1) + 17)
+        .slice(0, 8)
+        .map(({ item }) => item.seriesId),
+    );
+    const fresh = shuffled.filter(({ item }) => !previousWindow.has(item.seriesId));
+    const fallback = shuffled.filter(({ item }) => previousWindow.has(item.seriesId));
+    return [...fresh, ...fallback].slice(0, Math.min(8, ranked.length)).map(({ item }) => item);
+  }, [ai.data, batch, comic.data, discoverySearches, explorationTerm, preferenceTerms, preferences, works]);
 
   const hasTags = preferences.size > 0;
   const toggleCategories = () => {
@@ -150,7 +215,7 @@ export function HomeDiscovery({
           {recommendations.length ? (
             <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
               {recommendations.map((item) => (
-                <RankCard key={item.seriesId} item={item} works={works} />
+                <RankCard key={item.seriesId} item={item} works={works} showRank={false} />
               ))}
             </div>
           ) : (
@@ -159,7 +224,7 @@ export function HomeDiscovery({
             </p>
           )}
           <p className="mt-2 text-[11px] text-subtle-foreground">
-            {hasTags ? "依收藏、追劇與觀看過的題材排序" : "依近期官方熱榜提供多元推薦"}
+            {hasTags ? "依收藏、追劇、偏好題材與紅果搜尋動態推薦" : "依近期熱榜與多元題材動態推薦"}
           </p>
         </section>
       )}
@@ -307,7 +372,15 @@ function RankingSection({
   );
 }
 
-function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
+function RankCard({
+  item,
+  works,
+  showRank = true,
+}: {
+  item: RecommendationItem;
+  works: Work[];
+  showRank?: boolean;
+}) {
   const owned = findWorkBySeriesId(works, item.seriesId);
   const content = (
     <>
@@ -325,9 +398,11 @@ function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
             {item.title}
           </div>
         )}
-        <span className="absolute left-1.5 top-1.5 rounded-br-lg rounded-tl-lg bg-black/75 px-2 py-1 text-[10px] font-semibold tracking-wide text-white">
-          TOP {item.rank}
-        </span>
+        {showRank && typeof item.rank === "number" && (
+          <span className="absolute left-1.5 top-1.5 rounded-br-lg rounded-tl-lg bg-black/75 px-2 py-1 text-[10px] font-semibold tracking-wide text-white">
+            TOP {item.rank}
+          </span>
+        )}
       </div>
       <p className="mt-2 line-clamp-2 min-h-9 font-serif text-sm font-semibold leading-5">
         {item.title}
@@ -336,7 +411,7 @@ function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
     </>
   );
   const className = "block w-[132px] min-w-0 shrink-0 text-left active:scale-[0.98]";
-  const link = owned ? (
+  return owned ? (
     <Link to="/work/$id" params={{ id: owned.id }} className={className}>
       {content}
     </Link>
@@ -350,10 +425,9 @@ function RankCard({ item, works }: { item: RankedWork; works: Work[] }) {
       {content}
     </Link>
   );
-  return link;
 }
 
-function uniqueRanked(items: RankedWork[]) {
+function uniqueOnline<T extends OnlineWork>(items: T[]): T[] {
   const seen = new Set<string>();
   const seenTitles = new Set<string>();
   return items.filter((item) => {
@@ -378,4 +452,26 @@ function interleaveRankings(comic: RankedWork[], ai: RankedWork[]) {
     if (aiItem) mixed.push(aiItem);
   }
   return mixed;
+}
+
+function seededNumber(input: string) {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967296;
+}
+
+function seededShuffle<T>(items: T[], seed: number) {
+  const copy = [...items];
+  let state = (seed * 2654435761) >>> 0;
+  for (let i = copy.length - 1; i > 0; i--) {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    const j = (state >>> 0) % (i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
