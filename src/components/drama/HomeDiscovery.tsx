@@ -12,7 +12,29 @@ import type { Work } from "@/lib/drama/types";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_COLLAPSED_KEY = "nina-drama-home-categories-collapsed";
-const DISCOVERY_TERMS = ["甜寵", "重生", "暗戀", "穿書", "豪門", "追妻", "先婚後愛", "救贖"];
+const SEEN_RECOMMENDATIONS_KEY = "nina-drama-seen-recommendations";
+const DISCOVERY_TERMS = [
+  "甜寵",
+  "重生",
+  "暗戀",
+  "穿書",
+  "豪門",
+  "追妻",
+  "先婚後愛",
+  "救贖",
+  "青梅竹馬",
+  "契約婚姻",
+  "復仇",
+  "校園",
+  "娛樂圈",
+  "玄幻",
+  "古風",
+  "總裁",
+  "萌寶",
+  "閃婚",
+  "破鏡重圓",
+  "雙向奔赴",
+];
 const RANKING_URL: Record<RankingKind, string> = {
   comic: "https://hongguoduanju.com/rank/hot-comic-drama",
   ai: "https://hongguoduanju.com/rank/hot-ai-drama",
@@ -33,14 +55,22 @@ export function HomeDiscovery({
   const [comicRefresh, setComicRefresh] = useState(0);
   const [aiRefresh, setAiRefresh] = useState(0);
   const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
+  const [seenRecommendationIds, setSeenRecommendationIds] = useState<string[]>([]);
   const comic = useRanking(getRanking, "comic", comicRefresh);
   const ai = useRanking(getRanking, "ai", aiRefresh);
 
   useEffect(() => {
     try {
       setCategoriesCollapsed(window.localStorage.getItem(CATEGORY_COLLAPSED_KEY) === "true");
+      const rawSeen = window.sessionStorage.getItem(SEEN_RECOMMENDATIONS_KEY);
+      if (rawSeen) {
+        const parsed = JSON.parse(rawSeen);
+        if (Array.isArray(parsed)) {
+          setSeenRecommendationIds(parsed.filter((value): value is string => typeof value === "string").slice(-160));
+        }
+      }
     } catch {
-      // Private browsing can disable storage; use the default expanded state.
+      // Private browsing can disable storage; use the in-memory defaults.
     }
   }, []);
 
@@ -72,28 +102,34 @@ export function HomeDiscovery({
       [...preferences.entries()]
         .filter(([term]) => term.length >= 2 && term.length <= 12)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 4)
+        .slice(0, 3)
         .map(([term]) => term),
     [preferences],
   );
 
-  const explorationTerm = DISCOVERY_TERMS[batch % DISCOVERY_TERMS.length];
+  const explorationTerms = useMemo(
+    () =>
+      Array.from({ length: 4 }, (_, index) => {
+        const termIndex = (batch * 4 + index) % DISCOVERY_TERMS.length;
+        return DISCOVERY_TERMS[termIndex];
+      }),
+    [batch],
+  );
+
   const searchTerms = useMemo(
-    () => [...new Set([...preferenceTerms, explorationTerm])].slice(0, 5),
-    [explorationTerm, preferenceTerms],
+    () => [...new Set([...preferenceTerms, ...explorationTerms])].slice(0, 7),
+    [explorationTerms, preferenceTerms],
   );
 
   const discoverySearches = useQueries({
-    queries: searchTerms.flatMap((term) =>
-      [1, 2].map((page) => ({
-        queryKey: ["hongguo-recommendation-search", term, page],
-        queryFn: () => searchOnline({ data: { query: term, page } }),
-        staleTime: 30 * 60_000,
-        gcTime: 60 * 60_000,
-        refetchOnWindowFocus: false,
-        retry: false,
-      })),
-    ),
+    queries: searchTerms.map((term) => ({
+      queryKey: ["hongguo-recommendation-search", term],
+      queryFn: () => searchOnline({ data: { query: term, page: 1 } }),
+      staleTime: 30 * 60_000,
+      gcTime: 60 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: false,
+    })),
   });
 
   const recommendations = useMemo(() => {
@@ -116,6 +152,7 @@ export function HomeDiscovery({
     );
     const ownedIds = new Set(works.map((w) => w.source?.seriesId).filter(Boolean));
     const ownedTitles = new Set(works.map((w) => normalizeTitle(w.title)));
+    const seenIds = new Set(seenRecommendationIds);
 
     const eligible = pool.filter(
       (item) =>
@@ -130,16 +167,16 @@ export function HomeDiscovery({
       const preferenceMatch = preferenceTerms.some((term) =>
         [item.title, ...item.tags].some((value) => value.toLocaleLowerCase().includes(term)),
       );
+      const explorationMatch = explorationTerms.some((term) =>
+        [item.title, ...item.tags].some((value) =>
+          value.toLocaleLowerCase().includes(term.toLocaleLowerCase()),
+        ),
+      );
       const rankingBoost = typeof item.rank === "number" ? Math.max(0, 24 - item.rank) / 12 : 0;
       const ownedPenalty = ownedIds.has(item.seriesId) || ownedTitles.has(normalizeTitle(item.title)) ? 4 : 0;
-      const explorationBoost = [item.title, ...item.tags].some((value) =>
-        value.toLocaleLowerCase().includes(explorationTerm.toLocaleLowerCase()),
-      )
-        ? 1.5
-        : 0;
       return {
         item,
-        score: tagScore * 4 + (preferenceMatch ? 5 : 0) + rankingBoost + explorationBoost - ownedPenalty,
+        score: tagScore * 4 + (preferenceMatch ? 5 : 0) + (explorationMatch ? 2 : 0) + rankingBoost - ownedPenalty,
         tie: seededNumber(`${item.seriesId}:${batch}:${index}`),
       };
     });
@@ -147,20 +184,40 @@ export function HomeDiscovery({
     ranked.sort((a, b) => b.score - a.score || b.tie - a.tie);
     if (!ranked.length) return [];
 
-    // Keep recommendations relevant while still changing meaningfully between refreshes.
-    const top = ranked.slice(0, Math.min(36, ranked.length));
-    const shuffled = seededShuffle(top, batch + 17);
-    const previousWindow = new Set(
-      seededShuffle(top, Math.max(0, batch - 1) + 17)
-        .slice(0, 8)
-        .map(({ item }) => item.seriesId),
-    );
-    const fresh = shuffled.filter(({ item }) => !previousWindow.has(item.seriesId));
-    const fallback = shuffled.filter(({ item }) => previousWindow.has(item.seriesId));
-    return [...fresh, ...fallback].slice(0, Math.min(8, ranked.length)).map(({ item }) => item);
-  }, [ai.data, batch, comic.data, discoverySearches, explorationTerm, preferenceTerms, preferences, works]);
+    const unseen = ranked.filter(({ item }) => !seenIds.has(item.seriesId));
+    const source = unseen.length >= 8 ? unseen : ranked;
+    const relevantWindow = source.slice(0, Math.min(60, source.length));
+    return seededShuffle(relevantWindow, batch + 31)
+      .slice(0, Math.min(8, relevantWindow.length))
+      .map(({ item }) => item);
+  }, [
+    ai.data,
+    batch,
+    comic.data,
+    discoverySearches,
+    explorationTerms,
+    preferenceTerms,
+    preferences,
+    seenRecommendationIds,
+    works,
+  ]);
 
   const hasTags = preferences.size > 0;
+
+  const handleRecommendationRefresh = () => {
+    const currentIds = recommendations.map((item) => item.seriesId);
+    setSeenRecommendationIds((current) => {
+      const next = [...new Set([...current, ...currentIds])].slice(-160);
+      try {
+        window.sessionStorage.setItem(SEEN_RECOMMENDATIONS_KEY, JSON.stringify(next));
+      } catch {
+        // Keep refresh working even when storage is unavailable.
+      }
+      return next;
+    });
+    setBatch((value) => value + 1);
+  };
+
   const toggleCategories = () => {
     setCategoriesCollapsed((current) => {
       const next = !current;
@@ -206,7 +263,7 @@ export function HomeDiscovery({
             </h2>
             <button
               type="button"
-              onClick={() => setBatch((value) => value + 1)}
+              onClick={handleRecommendationRefresh}
               className="flex min-h-8 items-center gap-1 text-xs text-muted-foreground active:text-primary"
             >
               <RefreshCw className="size-3.5" /> 換一批
