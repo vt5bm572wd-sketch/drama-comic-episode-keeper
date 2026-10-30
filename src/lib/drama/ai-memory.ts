@@ -1,13 +1,9 @@
 import { uid } from "./domain";
+import { generateAiMemoryServer } from "./ai-memory.functions";
+import type { AiMemoryGenerated, AiMemoryGenerationInput } from "./ai-memory-contract";
 import type { AiMemory, AiMemoryItem, AiScene, Season, Work } from "./types";
 
-export interface AiMemoryGenerationInput {
-  workTitle: string;
-  seasonNumber: number;
-  seriesId?: string | undefined;
-  officialSynopsis: string;
-  mainCharacters: string[];
-}
+export type { AiMemoryGenerationInput } from "./ai-memory-contract";
 
 const accepted = (item: Pick<AiMemoryItem, "confidence" | "seasonVerified">) =>
   item.confidence === "high" || (item.confidence === "medium" && item.seasonVerified);
@@ -126,16 +122,44 @@ function localMemory(input: AiMemoryGenerationInput): AiMemory {
   };
 }
 
-/**
- * Phase 1 的非阻塞生成器。未來接上伺服器 AI／搜尋 API 時只需替換此函式，
- * UI、每季資料隔離、驗證與重新生成合併規則都不必重做。
- */
+export function toAiMemory(
+  generated: AiMemoryGenerated,
+  input: AiMemoryGenerationInput,
+  generatedAt: string,
+  model: string,
+): AiMemory {
+  return sanitizeAiMemory({
+    summary: generated.summary,
+    keyPlots: generated.keyPlots.map((item) => ({ id: uid("memory"), ...item })),
+    famousScenes: generated.famousScenes.map((scene) => ({
+      id: uid("scene"),
+      text: scene.description ? `${scene.title}：${scene.description}` : scene.title,
+      ...scene,
+    })),
+    suggestedTags: generated.suggestedTags,
+    excludedItems: generated.excludedItems.map((item) => ({ id: uid("excluded"), ...item })),
+    generatedAt,
+    model,
+    identity: input,
+  });
+}
+
+function fallbackMemory(input: AiMemoryGenerationInput) {
+  return /冰冷重遇/.test(input.workTitle) && input.seasonNumber === 1
+    ? iceColdMemory(input)
+    : localMemory(input);
+}
+
+/** 伺服器 AI 優先；缺少來源、額度或連線失敗時安全回退，永不阻塞收藏流程。 */
 export async function generateAiMemory(work: Work, season: Season): Promise<AiMemory> {
   const input = seasonIdentity(work, season);
-  await Promise.resolve();
-  const result =
-    /冰冷重遇/.test(input.workTitle) && input.seasonNumber === 1
-      ? iceColdMemory(input)
-      : localMemory(input);
-  return sanitizeAiMemory(result);
+  if (import.meta.env.MODE !== "test") {
+    try {
+      const result = await generateAiMemoryServer({ data: input });
+      if (result.ok) return toAiMemory(result.memory, input, result.generatedAt, result.model);
+    } catch {
+      // Server Function 本身失敗時仍使用本機備援，避免影響既有收藏資料。
+    }
+  }
+  return sanitizeAiMemory(fallbackMemory(input));
 }

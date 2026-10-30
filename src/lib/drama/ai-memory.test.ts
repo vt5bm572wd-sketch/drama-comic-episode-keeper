@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { generateAiMemory, mergeRegeneratedMemory, sanitizeAiMemory } from "./ai-memory";
+import {
+  generateAiMemory,
+  mergeRegeneratedMemory,
+  sanitizeAiMemory,
+  toAiMemory,
+} from "./ai-memory";
 import { makeSeason } from "./domain";
 import { MemoryRepository } from "./repository";
 import { createDramaStore } from "./store";
@@ -81,6 +86,53 @@ describe("AI 觀看記憶", () => {
     expect(generated.identity.seasonNumber).toBe(1);
     expect(generated.keyPlots).toHaveLength(4);
     expect(generated.excludedItems.some((item) => item.suspectedSeason === 2)).toBe(true);
+  });
+
+  it("伺服器結構化結果會補上內部 ID，並再次套用可信度規則", () => {
+    const target = work();
+    const identity = {
+      workTitle: target.title,
+      seasonNumber: 1,
+      seriesId: "1001",
+      officialSynopsis: target.synopsis,
+      mainCharacters: [],
+    };
+    const converted = toAiMemory(
+      {
+        summary: "三年後再次相遇。",
+        keyPlots: [
+          {
+            text: "兩人重逢。",
+            confidence: "high",
+            seasonVerified: true,
+            sourceCount: 1,
+            sourceSeason: 1,
+            verificationReason: "本季官方簡介直接記載",
+          },
+          {
+            text: "無法確認的事件。",
+            confidence: "low",
+            seasonVerified: false,
+            sourceCount: 0,
+            sourceSeason: null,
+            verificationReason: "來源不足",
+          },
+        ],
+        famousScenes: [],
+        suggestedTags: ["久別重逢", "久別重逢"],
+        excludedItems: [
+          { text: "疑似後續事件", reason: "無法確認屬於本季", suspectedSeason: 2 },
+        ],
+      },
+      identity,
+      NOW,
+      "google/gemini-3.1-flash-lite",
+    );
+    expect(converted.keyPlots).toHaveLength(1);
+    expect(converted.keyPlots[0]?.id).toBeTruthy();
+    expect(converted.suggestedTags).toEqual(["久別重逢"]);
+    expect(converted.identity).toEqual(identity);
+    expect(converted.model).toBe("google/gemini-3.1-flash-lite");
   });
 
   it("不同季分開保存，重新載入後仍存在", () => {

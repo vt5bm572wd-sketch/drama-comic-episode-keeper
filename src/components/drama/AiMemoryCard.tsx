@@ -35,7 +35,11 @@ export function AiMemoryCard({ work, season }: { work: Work; season: Season }) {
     try {
       const next = await generateAiMemory(work, season);
       if (!dramaStore.setAiMemory(work.id, season.id, next)) throw new Error("save failed");
-      toast.success(memory ? "已重新整理觀看記憶" : "已生成觀看記憶");
+      if (next.model === "mock-v1") {
+        toast.info("AI 暫時無法連線，已用官方簡介整理。原有資料未受影響。");
+      } else {
+        toast.success(memory ? "已重新整理觀看記憶" : "已生成觀看記憶");
+      }
     } catch {
       toast.error("觀看記憶生成失敗，收藏與原有資料沒有變更。");
     } finally {
