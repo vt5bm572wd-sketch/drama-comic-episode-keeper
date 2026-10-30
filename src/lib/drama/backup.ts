@@ -21,6 +21,45 @@ const sourceSchema = z.object({
   url: z.string().max(500).optional(),
   linkedAt: z.string().optional(),
 });
+const confidenceSchema = z.enum(["high", "medium", "low"]);
+const aiItemSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  confidence: confidenceSchema,
+  seasonVerified: z.boolean(),
+  sourceCount: z.number().int().min(0),
+  sourceSeason: z.number().int().positive().nullable().optional(),
+  verificationReason: z.string().optional(),
+});
+const aiSceneSchema = aiItemSchema.extend({
+  title: z.string(),
+  description: z.string().optional(),
+  episode: z.number().int().positive().nullable().optional(),
+  favorited: z.boolean().optional(),
+});
+const aiMemorySchema = z.object({
+  summary: z.string(),
+  keyPlots: z.array(aiItemSchema),
+  famousScenes: z.array(aiSceneSchema),
+  suggestedTags: z.array(z.string()),
+  excludedItems: z.array(
+    z.object({
+      id: z.string(),
+      text: z.string(),
+      reason: z.string(),
+      suspectedSeason: z.number().int().positive().nullable().optional(),
+    }),
+  ),
+  generatedAt: z.string(),
+  model: z.string().optional(),
+  identity: z.object({
+    workTitle: z.string(),
+    seasonNumber: z.number().int().positive(),
+    seriesId: z.string().optional(),
+    officialSynopsis: z.string(),
+    mainCharacters: z.array(z.string()),
+  }),
+});
 
 const seasonSchema = z.object({
   id: z.string().min(1).optional(),
@@ -42,6 +81,7 @@ const seasonSchema = z.object({
   status: watchStatus.default("unwatched"),
   statusMode: z.enum(["auto", "manual"]).optional(),
   note: z.string().default(""),
+  aiMemory: aiMemorySchema.optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });
@@ -198,6 +238,7 @@ export function parseBackup(
       status: s.status,
       statusMode: s.statusMode,
       note: s.note,
+      aiMemory: s.aiMemory,
       createdAt: s.createdAt ?? now,
       updatedAt: s.updatedAt ?? now,
     }));

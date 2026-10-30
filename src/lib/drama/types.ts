@@ -4,6 +4,50 @@ export type WatchStatus =
 export type StatusMode = "auto" | "manual";
 export type CollectStatus = "favorite" | "collected" | "archived";
 
+export type AiConfidence = "high" | "medium" | "low";
+
+export interface AiMemoryItem {
+  id: string;
+  text: string;
+  confidence: AiConfidence;
+  seasonVerified: boolean;
+  sourceCount: number;
+  sourceSeason?: number | null | undefined;
+  verificationReason?: string | undefined;
+}
+
+export interface AiScene extends AiMemoryItem {
+  title: string;
+  description?: string | undefined;
+  episode?: number | null | undefined;
+  favorited?: boolean | undefined;
+}
+
+export interface AiExcludedItem {
+  id: string;
+  text: string;
+  reason: string;
+  suspectedSeason?: number | null | undefined;
+}
+
+export interface AiMemory {
+  summary: string;
+  keyPlots: AiMemoryItem[];
+  famousScenes: AiScene[];
+  suggestedTags: string[];
+  excludedItems: AiExcludedItem[];
+  generatedAt: string;
+  model?: string | undefined;
+  /** 供內部防串季驗證；前台不顯示。 */
+  identity: {
+    workTitle: string;
+    seasonNumber: number;
+    seriesId?: string | undefined;
+    officialSynopsis: string;
+    mainCharacters: string[];
+  };
+}
+
 export interface Season {
   id: string;
   /** 季數（第幾季） */
@@ -33,6 +77,8 @@ export interface Season {
   status: WatchStatus;
   statusMode?: StatusMode | undefined;
   note: string;
+  /** 每一季獨立保存，避免系列內不同季共用觀看記憶。 */
+  aiMemory?: AiMemory | undefined;
   createdAt: string;
   updatedAt: string;
 }

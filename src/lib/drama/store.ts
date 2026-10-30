@@ -13,7 +13,8 @@ import {
 } from "./domain";
 import { findSeriesMatch, parseSeriesIdentity } from "./series-identity";
 import { CorruptDramaDataError, LocalStorageRepository, type DramaRepository } from "./repository";
-import type { CustomCategory, Season, Work } from "./types";
+import type { AiMemory, CustomCategory, Season, Work } from "./types";
+import { mergeRegeneratedMemory } from "./ai-memory";
 
 type Listener = () => void;
 
@@ -337,6 +338,53 @@ export function createDramaStore(repo: DramaRepository) {
 
     setCurrentSeason(id: string, seasonId: string) {
       return updateOne(id, (w) => ({ ...w, currentSeasonId: seasonId }));
+    },
+
+    setAiMemory(id: string, seasonId: string, memory: AiMemory) {
+      return updateOne(id, (w) => ({
+        ...w,
+        seasons: w.seasons.map((season) =>
+          season.id === seasonId
+            ? {
+                ...season,
+                aiMemory: mergeRegeneratedMemory(season.aiMemory, memory),
+                updatedAt: now(),
+              }
+            : season,
+        ),
+        updatedAt: now(),
+      }));
+    },
+
+    toggleAiSceneFavorite(id: string, seasonId: string, sceneId: string) {
+      return updateOne(id, (w) => ({
+        ...w,
+        seasons: w.seasons.map((season) =>
+          season.id !== seasonId || !season.aiMemory
+            ? season
+            : {
+                ...season,
+                aiMemory: {
+                  ...season.aiMemory,
+                  famousScenes: season.aiMemory.famousScenes.map((scene) =>
+                    scene.id === sceneId ? { ...scene, favorited: !scene.favorited } : scene,
+                  ),
+                },
+                updatedAt: now(),
+              },
+        ),
+        updatedAt: now(),
+      }));
+    },
+
+    addSuggestedTag(id: string, tag: string) {
+      const trimmed = tag.trim();
+      if (!trimmed) return false;
+      return updateOne(id, (w) => ({
+        ...w,
+        tags: w.tags.includes(trimmed) ? w.tags : [...w.tags, trimmed],
+        updatedAt: now(),
+      }));
     },
 
     upsertSeason(id: string, season: Season) {

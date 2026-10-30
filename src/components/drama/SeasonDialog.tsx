@@ -135,11 +135,11 @@ export function SeasonDialog({
               ))}
             </NativeSelect>
           </Field>
-          <Field label="本季備註">
+          <Field label="💭 我的一句話（選填）">
             <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              aria-label="本季備註"
+              aria-label="我的一句話"
               rows={4}
             />
           </Field>

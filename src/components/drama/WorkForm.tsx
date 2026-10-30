@@ -540,7 +540,7 @@ export function WorkForm({
       )}
 
       {mode === "advanced" && (
-        <Field label="系列備註">
+        <Field label="我的記憶">
           <Textarea value={d.note} onChange={(e) => set("note", e.target.value)} rows={4} />
         </Field>
       )}
@@ -626,7 +626,7 @@ export function WorkForm({
               </Field>
             )}
             {mode === "advanced" && (
-              <Field label="本季備註">
+              <Field label="💭 我的一句話（選填）">
                 <Textarea
                   value={s.note}
                   onChange={(e) => setSeason(s.id, { note: e.target.value })}

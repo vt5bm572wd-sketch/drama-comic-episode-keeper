@@ -11,6 +11,7 @@ import { BackupImportButton, ScreenshotImportButton } from "@/components/drama/A
 import { PageHeader } from "@/components/drama/PageHeader";
 import { WorkForm, type WorkPrefill } from "@/components/drama/WorkForm";
 import { SeriesMatchDialog } from "@/components/drama/SeriesMatchDialog";
+import { generateAiMemory } from "@/lib/drama/ai-memory";
 import { normalizeTitle } from "@/lib/drama/domain";
 import { buildHongguoPrefill } from "@/lib/drama/hongguo-prefill";
 import {
@@ -44,6 +45,17 @@ export const Route = createFileRoute("/add")({
   }),
   component: AddPage,
 });
+
+/** 收藏先完成，再於背景整理新加入季；失敗不回滾收藏。 */
+function queueAiMemory(work: Work, preferredSeriesId?: string) {
+  const season =
+    work.seasons.find((item) => item.source?.seriesId === preferredSeriesId && !item.aiMemory) ??
+    work.seasons.find((item) => !item.aiMemory);
+  if (!season) return;
+  void generateAiMemory(work, season)
+    .then((memory) => dramaStore.setAiMemory(work.id, season.id, memory))
+    .catch(() => undefined);
+}
 
 const LINK_IMPORTS: { mode: LinkMode; icon: typeof Link2; label: string }[] = [
   { mode: "url", icon: Link2, label: "作品網址" },
@@ -179,6 +191,7 @@ function AddPage() {
                   }
                 : undefined,
             );
+            queueAiMemory(result.work, work.seasons[0]?.source?.seriesId);
             navigate({ to: "/work/$id", params: { id: result.work.id }, replace: true });
             return;
           }
@@ -195,6 +208,7 @@ function AddPage() {
           if (!merged) return toast.error("系列合併失敗，原有資料沒有變更。");
           setPossible(null);
           toast.success(`已加入《${merged.title}》系列`);
+          queueAiMemory(merged, possible.incoming.seasons[0]?.source?.seriesId);
           navigate({ to: "/work/$id", params: { id: merged.id }, replace: true });
         }}
         onSeparate={() => {
@@ -203,6 +217,7 @@ function AddPage() {
           if (!dramaStore.add(incoming)) return toast.error("收藏失敗，請稍後重試。");
           setPossible(null);
           toast.success(`已獨立收藏《${incoming.title}》`);
+          queueAiMemory(incoming, incoming.seasons[0]?.source?.seriesId);
           navigate({ to: "/work/$id", params: { id: incoming.id }, replace: true });
         }}
       />

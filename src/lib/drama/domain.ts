@@ -171,6 +171,7 @@ export function makeSeason(partial: SeasonInput, now: string): Season {
     status: partial.status === "want" ? "unwatched" : (partial.status ?? "unwatched"),
     statusMode: partial.statusMode ?? "auto",
     note: partial.note ?? "",
+    aiMemory: partial.aiMemory,
     createdAt: partial.createdAt ?? now,
     updatedAt: partial.updatedAt ?? now,
   };
@@ -218,6 +219,7 @@ export function mergeIntoSeries(
       status: newer.status === "want" ? "unwatched" : newer.status,
       statusMode: newer.statusMode,
       rating: newer.rating ?? existing.rating,
+      aiMemory: existing.aiMemory ?? same.aiMemory,
       note: [existing.note, same.note]
         .filter(Boolean)
         .filter((v, i, a) => a.indexOf(v) === i)

@@ -13,6 +13,7 @@ import {
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { SeriesInfo } from "@/components/drama/SeriesInfo";
+import { AiMemoryCard } from "@/components/drama/AiMemoryCard";
 import { Chip, ChipRow } from "@/components/drama/Chip";
 import { ConfirmDialog } from "@/components/drama/ConfirmDialog";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
@@ -319,12 +320,6 @@ function WorkDetail({ work }: { work: Work }) {
                 )}
               </div>
 
-              {selected.note && (
-                <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  {selected.note}
-                </p>
-              )}
-
               <div className="flex gap-2 border-t border-border pt-3">
                 <Button
                   variant="ghost"
@@ -374,63 +369,73 @@ function WorkDetail({ work }: { work: Work }) {
           )}
         </section>
 
-        {work.synopsis && (
-          <InfoBlock title="劇情簡介">
-            <p className="whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
-              {work.synopsis}
+        {selected && <AiMemoryCard key={selected.id} work={work} season={selected} />}
+
+        {(selected?.synopsis || work.synopsis) && (
+          <details className="surface group overflow-hidden px-4">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-3 font-serif text-lg font-semibold [&::-webkit-details-marker]:hidden">
+              <span>官方劇情簡介</span>
+              <ChevronDown className="size-4 shrink-0 text-subtle-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="whitespace-pre-line pb-4 text-[15px] leading-relaxed text-muted-foreground">
+              {selected?.synopsis || work.synopsis}
             </p>
-          </InfoBlock>
+          </details>
         )}
 
-        {work.actors.length > 0 && (
-          <InfoBlock title="演員">
-            <div className="flex flex-wrap gap-2">
-              {work.actors.map((a) => (
-                <Link
-                  key={a}
-                  to="/search"
-                  search={{ q: a }}
-                  className="rounded-full bg-card px-3 py-1.5 text-sm text-muted-foreground"
-                >
-                  {a}
-                </Link>
-              ))}
-            </div>
-          </InfoBlock>
-        )}
-
-        {(work.categories.length > 0 || work.tags.length > 0) && (
+        {(work.categories.length > 0 ||
+          work.tags.length > 0 ||
+          selected?.aiMemory?.suggestedTags.some((tag) => !work.tags.includes(tag))) && (
           <InfoBlock title="分類與標籤">
-            <div className="flex flex-wrap gap-2">
-              {work.categories.map((c) => (
-                <Link
-                  key={c}
-                  to="/library"
-                  search={{ category: c }}
-                  className="rounded-full bg-primary-soft px-3 py-1.5 text-sm text-primary"
-                >
-                  {c}
-                </Link>
-              ))}
-              {work.tags.map((t) => (
-                <Link
-                  key={t}
-                  to="/search"
-                  search={{ q: t }}
-                  className="rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground"
-                >
-                  #{t}
-                </Link>
-              ))}
+            <div className="space-y-3">
+              {(work.categories.length > 0 || work.tags.length > 0) && (
+                <p className="text-xs font-medium text-subtle-foreground">我的標籤</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {work.categories.map((c) => (
+                  <Link
+                    key={c}
+                    to="/library"
+                    search={{ category: c }}
+                    className="rounded-full bg-primary-soft px-3 py-1.5 text-sm text-primary"
+                  >
+                    {c}
+                  </Link>
+                ))}
+                {work.tags.map((t) => (
+                  <Link
+                    key={t}
+                    to="/search"
+                    search={{ q: t }}
+                    className="rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground"
+                  >
+                    #{t}
+                  </Link>
+                ))}
+              </div>
+              {selected?.aiMemory?.suggestedTags.some((tag) => !work.tags.includes(tag)) && (
+                <div>
+                  <p className="mb-2 text-xs font-medium text-subtle-foreground">AI 建議</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selected.aiMemory.suggestedTags
+                      .filter((tag) => !work.tags.includes(tag))
+                      .map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          className="min-h-11 rounded-full border border-border px-3 text-sm text-primary"
+                          onClick={() => {
+                            if (dramaStore.addSuggestedTag(work.id, tag))
+                              toast.success(`已加入標籤「${tag}」`);
+                          }}
+                        >
+                          ＋{tag}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </InfoBlock>
-        )}
-
-        {work.note && (
-          <InfoBlock title="系列備註">
-            <p className="whitespace-pre-line rounded-xl bg-card px-4 py-3 text-[15px] leading-relaxed text-muted-foreground">
-              {work.note}
-            </p>
           </InfoBlock>
         )}
 
