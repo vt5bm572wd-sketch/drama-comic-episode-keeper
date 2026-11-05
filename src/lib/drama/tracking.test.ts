@@ -135,6 +135,16 @@ describe("相容、安全及備份", () => {
   });
   it("備份往返保留分類 registry、關聯、進度與日期", () => {
     const w = { ...work(), customCategories: ["love"] };
+    w.seasons[0] = {
+      ...w.seasons[0]!,
+      watchMemory: {
+        summary: "舊劇情簡介",
+        plot: "劇情重點",
+        scenes: "名場面",
+        characters: "舊人物關係",
+        notes: "個人筆記",
+      },
+    };
     const cats = [
       { id: "love", name: "超愛" },
       { id: "empty", name: "空分類" },
@@ -155,9 +165,40 @@ describe("相容、安全及備份", () => {
           watchedEpisodes: 35,
           currentEpisodes: 35,
           status: w.seasons[0]!.status,
+          watchMemory: w.seasons[0]!.watchMemory,
         }),
       ],
     });
+  });
+
+  it("每季觀看記憶各自儲存，修改一季不影響另一季", () => {
+    const w = work();
+    w.seasons.push(
+      makeSeason({ id: "s2", number: 2, totalEpisodes: 20, watchedEpisodes: 0 }, stamp),
+    );
+    const store = createDramaStore(new MemoryRepository([w]));
+    expect(store.setSeasonMemory("a", "s1", { plot: "第一季" })).toBe(true);
+    expect(store.setSeasonMemory("a", "s2", { plot: "第二季" })).toBe(true);
+    expect(store.setSeasonMemory("a", "s2", { plot: "第二季修改", notes: "筆記" })).toBe(true);
+    expect(store.get("a")?.seasons.find((s) => s.id === "s1")?.watchMemory).toEqual({
+      plot: "第一季",
+    });
+    expect(store.get("a")?.seasons.find((s) => s.id === "s2")?.watchMemory).toEqual({
+      plot: "第二季修改",
+      notes: "筆記",
+    });
+  });
+
+  it("手動設定本季已看完後，儲存季資料不會改回自動狀態", () => {
+    const w = work();
+    const store = createDramaStore(new MemoryRepository([w]));
+    store.upsertSeason("a", {
+      ...w.seasons[0]!,
+      status: "completed",
+      statusMode: "manual",
+    });
+    expect(store.get("a")?.seasons[0]?.status).toBe("completed");
+    expect(store.get("a")?.seasons[0]?.statusMode).toBe("manual");
   });
   it("不覆蓋損壞 JSON", () => {
     localStorage.setItem("nina-drama:v1", "broken");

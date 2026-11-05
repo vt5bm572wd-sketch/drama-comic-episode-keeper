@@ -22,6 +22,14 @@ const sourceSchema = z.object({
   linkedAt: z.string().optional(),
 });
 
+const watchMemorySchema = z.object({
+  summary: z.string().optional(),
+  plot: z.string().optional(),
+  scenes: z.string().optional(),
+  characters: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 const seasonSchema = z.object({
   id: z.string().min(1).optional(),
   number: z.number().int().min(1),
@@ -42,6 +50,7 @@ const seasonSchema = z.object({
   status: watchStatus.default("unwatched"),
   statusMode: z.enum(["auto", "manual"]).optional(),
   note: z.string().default(""),
+  watchMemory: watchMemorySchema.optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });
@@ -198,6 +207,7 @@ export function parseBackup(
       status: s.status,
       statusMode: s.statusMode,
       note: s.note,
+      watchMemory: s.watchMemory,
       createdAt: s.createdAt ?? now,
       updatedAt: s.updatedAt ?? now,
     }));

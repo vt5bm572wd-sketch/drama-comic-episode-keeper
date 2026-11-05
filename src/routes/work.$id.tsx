@@ -149,7 +149,10 @@ function WorkDetail({ work }: { work: Work }) {
         <div className="surface space-y-4 p-4">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[13px] text-muted-foreground">個人評分</span>
-            <RatingStars value={work.rating} onChange={(v) => dramaStore.update(work.id, { rating: v })} />
+            <RatingStars
+              value={work.rating}
+              onChange={(v) => dramaStore.update(work.id, { rating: v })}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="space-y-1.5">
@@ -163,7 +166,9 @@ function WorkDetail({ work }: { work: Work }) {
                 }}
               >
                 {WATCH_STATUS_ORDER.map((s) => (
-                  <option key={s} value={s}>{WATCH_STATUS_LABEL[s]}</option>
+                  <option key={s} value={s}>
+                    {WATCH_STATUS_LABEL[s]}
+                  </option>
                 ))}
               </NativeSelect>
             </label>
@@ -172,10 +177,14 @@ function WorkDetail({ work }: { work: Work }) {
               <NativeSelect
                 value={work.collectStatus}
                 aria-label="收藏狀態"
-                onChange={(e) => dramaStore.update(work.id, { collectStatus: e.target.value as CollectStatus })}
+                onChange={(e) =>
+                  dramaStore.update(work.id, { collectStatus: e.target.value as CollectStatus })
+                }
               >
                 {COLLECT_STATUS_ORDER.map((s) => (
-                  <option key={s} value={s}>{COLLECT_STATUS_LABEL[s]}</option>
+                  <option key={s} value={s}>
+                    {COLLECT_STATUS_LABEL[s]}
+                  </option>
                 ))}
               </NativeSelect>
             </label>
@@ -220,7 +229,10 @@ function WorkDetail({ work }: { work: Work }) {
                 <Chip key={s.id} active={selected?.id === s.id} onClick={() => selectSeason(s.id)}>
                   第 {s.number} 季
                   {s.id === work.currentSeasonId && (
-                    <span className="ml-1.5 size-1.5 rounded-full bg-primary" aria-label="目前觀看" />
+                    <span
+                      className="ml-1.5 size-1.5 rounded-full bg-primary"
+                      aria-label="目前觀看"
+                    />
                   )}
                 </Chip>
               ))}
@@ -235,7 +247,9 @@ function WorkDetail({ work }: { work: Work }) {
                     第 {selected.number} 季{selected.title ? ` · ${selected.title}` : ""}
                   </p>
                   {selected.originTitle && (
-                    <p className="truncate text-xs text-subtle-foreground">原作品《{selected.originTitle}》</p>
+                    <p className="truncate text-xs text-subtle-foreground">
+                      原作品《{selected.originTitle}》
+                    </p>
                   )}
                 </div>
                 <StatusBadge status={selected.status} />
@@ -259,7 +273,9 @@ function WorkDetail({ work }: { work: Work }) {
                     }
                   >
                     {WATCH_STATUS_ORDER.map((s) => (
-                      <option key={s} value={s}>{WATCH_STATUS_LABEL[s]}</option>
+                      <option key={s} value={s}>
+                        {WATCH_STATUS_LABEL[s]}
+                      </option>
                     ))}
                   </NativeSelect>
                 </label>
@@ -275,7 +291,9 @@ function WorkDetail({ work }: { work: Work }) {
                     設為目前
                   </Button>
                 ) : (
-                  <span className="flex h-11 items-center px-2 text-xs text-primary">目前觀看中</span>
+                  <span className="flex h-11 items-center px-2 text-xs text-primary">
+                    目前觀看中
+                  </span>
                 )}
               </div>
 
@@ -287,8 +305,12 @@ function WorkDetail({ work }: { work: Work }) {
                 </summary>
                 <div className="space-y-4 pt-2">
                   <div className="grid grid-cols-2 gap-2 text-xs text-subtle-foreground">
-                    <span>{selected.updateDate ? `更新：${selected.updateDate}` : "未提供更新日期"}</span>
-                    <span className="text-right">{selected.rating ? `評分：${selected.rating} 星` : "本季未評分"}</span>
+                    <span>
+                      {selected.updateDate ? `更新：${selected.updateDate}` : "未提供更新日期"}
+                    </span>
+                    <span className="text-right">
+                      {selected.rating ? `評分：${selected.rating} 星` : "本季未評分"}
+                    </span>
                   </div>
 
                   {selected.source && (
@@ -302,12 +324,12 @@ function WorkDetail({ work }: { work: Work }) {
                     </a>
                   )}
 
-                  {selected.note && (
-                    <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">{selected.note}</p>
-                  )}
-
                   <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                    <Button variant="ghost" size="sm" onClick={() => setSeasonDialog({ open: true, season: selected })}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSeasonDialog({ open: true, season: selected })}
+                    >
                       <Pencil /> 編輯本季
                     </Button>
                     {seasons.length > 1 && (
@@ -427,22 +449,26 @@ function WorkDetail({ work }: { work: Work }) {
               </div>
             )}
 
-            {work.note && (
-              <div>
-                <h3 className="mb-2 text-sm font-semibold">系列備註</h3>
-                <p className="whitespace-pre-line rounded-xl bg-card px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-                  {work.note}
-                </p>
-              </div>
-            )}
-
             <dl className="space-y-1 text-[11px] text-subtle-foreground">
-              <div className="flex gap-2"><dt>系列 ID</dt><dd className="truncate font-mono">{work.id}</dd></div>
-              <div className="flex gap-2"><dt>建立</dt><dd>{new Date(work.createdAt).toLocaleString("zh-TW")}</dd></div>
-              <div className="flex gap-2"><dt>資料修改</dt><dd>{new Date(work.updatedAt).toLocaleString("zh-TW")}</dd></div>
+              <div className="flex gap-2">
+                <dt>系列 ID</dt>
+                <dd className="truncate font-mono">{work.id}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt>建立</dt>
+                <dd>{new Date(work.createdAt).toLocaleString("zh-TW")}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt>資料修改</dt>
+                <dd>{new Date(work.updatedAt).toLocaleString("zh-TW")}</dd>
+              </div>
             </dl>
 
-            <Button variant="outline" className="w-full text-destructive" onClick={() => setConfirmDelete(true)}>
+            <Button
+              variant="outline"
+              className="w-full text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
               <Trash2 /> 刪除作品
             </Button>
           </div>
@@ -462,7 +488,11 @@ function WorkDetail({ work }: { work: Work }) {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title={`刪除《${work.title}》？`}
-        description={<p>將一併刪除 {seasons.length} 季的觀看進度與備註，刪除後無法復原。建議先到設定匯出備份。</p>}
+        description={
+          <p>
+            將一併刪除 {seasons.length} 季的觀看進度與備註，刪除後無法復原。建議先到設定匯出備份。
+          </p>
+        }
         confirmLabel="確定刪除"
         onConfirm={() => {
           if (dramaStore.remove(work.id)) {
@@ -493,7 +523,12 @@ function WorkDetail({ work }: { work: Work }) {
           open={confirmSeasonDelete}
           onOpenChange={setConfirmSeasonDelete}
           title={`刪除第 ${selected.number} 季？`}
-          description={<p>此季的觀看進度（{selected.watchedEpisodes}/{selected.totalEpisodes} 集）與備註將被刪除，無法復原。</p>}
+          description={
+            <p>
+              此季的觀看進度（{selected.watchedEpisodes}/{selected.totalEpisodes}{" "}
+              集）與備註將被刪除，無法復原。
+            </p>
+          }
           confirmLabel="刪除本季"
           onConfirm={() => {
             if (dramaStore.removeSeason(work.id, selected.id)) {

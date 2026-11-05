@@ -85,7 +85,8 @@ describe("新增與編輯的共用表單", () => {
   });
   it("列表顯示作品日期與衍生提示", () => {
     render(<SeriesInfo work={w} />);
-    expect(screen.getByText("連載中｜更新至 35 集｜2026/10/27 更新")).toBeInTheDocument();
+    expect(screen.getByText("連載中")).toBeInTheDocument();
+    expect(screen.getByText("· 2026/10/27 更新")).toBeInTheDocument();
     expect(screen.getByText("等更新")).toBeInTheDocument();
   });
 });

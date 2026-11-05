@@ -8,9 +8,9 @@ import type { Season, WatchMemory } from "@/lib/drama/types";
 type MemoryTab = "plot" | "scenes" | "notes";
 
 const tabLabels: Record<MemoryTab, string> = {
-  plot: "關鍵劇情",
+  plot: "劇情重點",
   scenes: "名場面",
-  notes: "筆記",
+  notes: "個人筆記",
 };
 
 function plotLines(value: string) {
@@ -82,10 +82,19 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
             className="w-full resize-y rounded-2xl border border-border bg-background p-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => save(key)}>儲存</Button>
-            <Button size="sm" variant="secondary" onClick={() => setEditingKey(null)}>取消</Button>
+            <Button size="sm" onClick={() => save(key)}>
+              儲存
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setEditingKey(null)}>
+              取消
+            </Button>
             {value && (
-              <Button size="sm" variant="ghost" className="ml-auto text-destructive" onClick={() => clear(key)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto text-destructive"
+                onClick={() => clear(key)}
+              >
                 <Trash2 className="size-4" /> 清空
               </Button>
             )}
@@ -112,7 +121,11 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
         <p className="text-xs text-subtle-foreground">第 {season.number} 季 · 純手動記錄</p>
       </div>
 
-      <div role="tablist" aria-label="觀看記憶分類" className="mb-5 grid grid-cols-3 gap-1 rounded-2xl bg-muted/60 p-1">
+      <div
+        role="tablist"
+        aria-label="觀看記憶分類"
+        className="mb-5 grid grid-cols-3 gap-1 rounded-2xl bg-muted/60 p-1"
+      >
         {(Object.keys(tabLabels) as MemoryTab[]).map((value) => (
           <button
             key={value}
@@ -120,7 +133,9 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
             role="tab"
             aria-selected={tab === value}
             className={`min-h-11 rounded-xl px-2 text-sm transition ${
-              tab === value ? "bg-card font-semibold text-primary shadow-sm" : "text-muted-foreground"
+              tab === value
+                ? "bg-card font-semibold text-primary shadow-sm"
+                : "text-muted-foreground"
             }`}
             onClick={() => {
               setTab(value);
@@ -134,7 +149,7 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
 
       {tab === "plot" && (
         <div>
-          <h3 className="mb-3 font-semibold">📖 關鍵劇情</h3>
+          <h3 className="mb-3 font-semibold">📖 劇情重點</h3>
           {memory.plot && editingKey !== "plot" && (
             <ol className="mb-4 space-y-4">
               {plotLines(memory.plot).map((line, index) => (
@@ -142,12 +157,14 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
                   <span className="shrink-0 font-serif text-xl text-primary/70">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  <span className="min-w-0 whitespace-pre-wrap break-words text-muted-foreground">{line}</span>
+                  <span className="min-w-0 whitespace-pre-wrap break-words text-muted-foreground">
+                    {line}
+                  </span>
                 </li>
               ))}
             </ol>
           )}
-          {editor("plot", "關鍵劇情", "每行輸入一個重要事件", 6)}
+          {editor("plot", "劇情重點", "記錄本季重要劇情、故事發展及結局", 6)}
         </div>
       )}
 
@@ -177,9 +194,11 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
       {tab === "notes" && (
         <div>
           {memory.notes && editingKey !== "notes" && (
-            <p className="mb-4 whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">{memory.notes}</p>
+            <p className="mb-4 whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">
+              {memory.notes}
+            </p>
           )}
-          {editor("notes", "我的觀看筆記", "自由記錄心得、感想或其他備註", 8)}
+          {editor("notes", "個人筆記", "自由記錄心得、感想及其他內容", 8)}
         </div>
       )}
     </section>

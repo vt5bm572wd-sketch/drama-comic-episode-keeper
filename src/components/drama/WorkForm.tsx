@@ -275,6 +275,7 @@ export function WorkForm({
         prev.note !== s.note;
       return makeSeason(
         {
+          ...prev,
           id: s.id,
           number: Number(s.number),
           totalEpisodes: total,
@@ -539,12 +540,6 @@ export function WorkForm({
         </Field>
       )}
 
-      {mode === "advanced" && (
-        <Field label="系列備註">
-          <Textarea value={d.note} onChange={(e) => set("note", e.target.value)} rows={4} />
-        </Field>
-      )}
-
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-lg font-semibold">季數與進度</h2>
@@ -623,15 +618,6 @@ export function WorkForm({
                     </option>
                   ))}
                 </NativeSelect>
-              </Field>
-            )}
-            {mode === "advanced" && (
-              <Field label="本季備註">
-                <Textarea
-                  value={s.note}
-                  onChange={(e) => setSeason(s.id, { note: e.target.value })}
-                  rows={4}
-                />
               </Field>
             )}
           </div>

@@ -51,14 +51,12 @@ export function currentSeason(work: Work): Season | undefined {
   );
 }
 
-const SPECIAL_MANUAL_STATUSES = new Set<WatchStatus>(["paused", "dropped", "waiting"]);
-
 export function deriveSeasonStatus(
   season: Season,
   newSeason = false,
   seriesCompleted = false,
 ): WatchStatus {
-  if (season.statusMode === "manual" && SPECIAL_MANUAL_STATUSES.has(season.status)) {
+  if (season.statusMode === "manual") {
     return season.status;
   }
   if (season.watchedEpisodes <= 0) return newSeason ? "pending" : "unwatched";
@@ -168,6 +166,9 @@ export function makeSeason(partial: SeasonInput, now: string): Season {
     currentEpisodes: partial.currentEpisodes ?? total,
     watchedEpisodes: clampEpisode(partial.watchedEpisodes ?? 0, partial.currentEpisodes ?? total),
     caughtUpEpisodes: partial.caughtUpEpisodes,
+    watchMemory: partial.watchMemory,
+    sources: partial.sources,
+    specialType: partial.specialType,
     status: partial.status === "want" ? "unwatched" : (partial.status ?? "unwatched"),
     statusMode: partial.statusMode ?? "auto",
     note: partial.note ?? "",

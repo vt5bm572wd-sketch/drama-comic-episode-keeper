@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { makeSeason, nextSeasonNumber } from "@/lib/drama/domain";
 import { WATCH_STATUS_LABEL, WATCH_STATUS_ORDER } from "@/lib/drama/labels";
 import { dramaStore } from "@/lib/drama/store";
@@ -28,7 +27,6 @@ export function SeasonDialog({
   const [total, setTotal] = useState("");
   const [watched, setWatched] = useState("0");
   const [status, setStatus] = useState<WatchStatus>("unwatched");
-  const [note, setNote] = useState("");
   const [title, setTitle] = useState("");
   const [updateDate, setUpdateDate] = useState("");
   const [rating, setRating] = useState(0);
@@ -40,7 +38,6 @@ export function SeasonDialog({
     setTotal(season ? String(season.totalEpisodes) : "");
     setWatched(String(season?.watchedEpisodes ?? 0));
     setStatus(season?.status ?? "pending");
-    setNote(season?.note ?? "");
     setTitle(season?.title ?? season?.originTitle ?? "");
     setUpdateDate(season?.updateDate ?? "");
     setRating(season?.rating ?? 0);
@@ -70,7 +67,6 @@ export function SeasonDialog({
         watchedEpisodes: w,
         status,
         statusMode: "manual",
-        note: note.trim(),
         updateDate: updateDate || null,
         rating,
         updatedAt: now,
@@ -134,14 +130,6 @@ export function SeasonDialog({
                 </option>
               ))}
             </NativeSelect>
-          </Field>
-          <Field label="本季備註">
-            <Textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              aria-label="本季備註"
-              rows={4}
-            />
           </Field>
           <Field label="更新日期">
             <Input type="date" value={updateDate} onChange={(e) => setUpdateDate(e.target.value)} />
