@@ -37,12 +37,12 @@ function HomePage() {
 
   return (
     <main className="min-h-[100dvh] bg-background pb-nav">
-      <header className="pt-safe px-5 pb-5">
+      <header className="pt-safe px-5 pb-3">
         <p className="brand-title pt-4 text-2xl text-foreground">NINA DRAMA</p>
         <p className="mt-1 text-xs tracking-[0.2em] text-subtle-foreground">私人短劇・漫劇收藏館</p>
         <Link
           to="/search"
-          className="mt-5 flex h-12 items-center gap-3 rounded-2xl border border-border bg-card px-4 text-sm text-subtle-foreground shadow-card active:scale-[0.99]"
+          className="mt-4 flex h-12 items-center gap-3 rounded-2xl border border-border bg-card px-4 text-sm text-subtle-foreground shadow-card active:scale-[0.99]"
         >
           <Search className="size-[18px] shrink-0" />
           <span className="truncate">搜尋劇名、別名、分類、標籤…</span>
@@ -87,7 +87,7 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
     .slice(0, 10);
   const newEpisodes = works.filter((work) => newlyAvailableSeasons(work).length > 0);
   return (
-    <div className="space-y-9">
+    <div className="space-y-6">
       <SeasonManagement works={works} />
       {works.length === 0 && (
         <EmptyState
