@@ -1,1 +1,543 @@
-fatal: path 'src/routes/work..tsx' does not exist in 'HEAD'
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronUp,
+  FileQuestion,
+  FolderInput,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Scissors,
+  Trash2,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { SeriesInfo } from "@/components/drama/SeriesInfo";
+import { ManualWatchMemory } from "@/components/drama/ManualWatchMemory";
+import { Chip, ChipRow } from "@/components/drama/Chip";
+import { ConfirmDialog } from "@/components/drama/ConfirmDialog";
+import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
+import { EpisodeStepper } from "@/components/drama/EpisodeStepper";
+import { NativeSelect } from "@/components/drama/fields";
+import { MergeDialog } from "@/components/drama/MergeDialog";
+import { RatingStars } from "@/components/drama/RatingStars";
+import { SeasonDialog } from "@/components/drama/SeasonDialog";
+import { DemoBadge, StatusBadge, TypeBadge } from "@/components/drama/StatusBadge";
+import { WorkCover } from "@/components/drama/WorkCover";
+import { Button } from "@/components/ui/button";
+import { currentSeason, episodeCountLabel, sortSeasons, workTotals } from "@/lib/drama/domain";
+import { hongguoDetailUrl } from "@/lib/drama/link-import";
+import {
+  COLLECT_STATUS_LABEL,
+  COLLECT_STATUS_ORDER,
+  WATCH_STATUS_LABEL,
+  WATCH_STATUS_ORDER,
+} from "@/lib/drama/labels";
+import { dramaStore, useWork } from "@/lib/drama/store";
+import type { CollectStatus, Season, WatchStatus, Work } from "@/lib/drama/types";
+
+export const Route = createFileRoute("/work/$id")({
+  validateSearch: (s: Record<string, unknown>): { season?: string | undefined } => ({
+    season: typeof s["season"] === "string" && s["season"] ? s["season"] : undefined,
+  }),
+  head: () => ({
+    meta: [
+      { title: "作品詳情｜NINA DRAMA" },
+      { name: "description", content: "作品資訊、各季觀看進度、上一集與下一集。" },
+      { property: "og:title", content: "作品詳情｜NINA DRAMA" },
+      { property: "og:description", content: "作品資訊與各季觀看進度。" },
+      { property: "og:type", content: "article" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: WorkPage,
+});
+
+function WorkPage() {
+  const { id } = Route.useParams();
+  const work = useWork(id);
+
+  if (work === null) return <LoadingBlock />;
+  if (!work)
+    return (
+      <main className="pb-nav pt-safe">
+        <EmptyState
+          icon={FileQuestion}
+          title="找不到這部作品"
+          description="它可能已被刪除或合併到其他系列。"
+          action={
+            <Button asChild>
+              <Link to="/library">回到收藏</Link>
+            </Button>
+          }
+        />
+      </main>
+    );
+  return <WorkDetail work={work} />;
+}
+
+function WorkDetail({ work }: { work: Work }) {
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const router = useRouter();
+  const seasons = sortSeasons(work.seasons);
+  const selected: Season | undefined =
+    seasons.find((s) => s.id === search.season) ?? currentSeason(work);
+  const totals = workTotals(work);
+
+  const [seasonDialog, setSeasonDialog] = useState<{ open: boolean; season?: Season }>({
+    open: false,
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmSeasonDelete, setConfirmSeasonDelete] = useState(false);
+  const [confirmSplit, setConfirmSplit] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+
+  const selectSeason = (seasonId: string) =>
+    navigate({
+      to: "/work/$id",
+      params: { id: work.id },
+      search: { season: seasonId },
+      replace: true,
+    });
+
+  return (
+    <main className="pb-nav">
+      <div className="relative">
+        <div className="relative h-[300px] overflow-hidden bg-elevated">
+          <div className="poster-fade absolute inset-0" />
+        </div>
+        <div className="pt-safe absolute inset-x-0 top-0 flex items-center justify-between px-3">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="rounded-full bg-background/60"
+            aria-label="返回"
+            onClick={() =>
+              window.history.length > 1 ? router.history.back() : navigate({ to: "/library" })
+            }
+          >
+            <ChevronLeft className="size-5!" />
+          </Button>
+          <Button asChild variant="secondary" size="sm" className="rounded-full bg-background/60">
+            <Link to="/edit/$id" params={{ id: work.id }}>
+              <Pencil />
+              編輯
+            </Link>
+          </Button>
+        </div>
+        <div className="absolute inset-x-0 bottom-0 grid grid-cols-[120px_minmax(0,1fr)] items-end gap-4 px-5 translate-y-10">
+          <WorkCover src={work.cover} title={work.title} eager />
+          <div className="min-w-0 pb-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <TypeBadge type={work.type} />
+              <StatusBadge status={work.watchStatus} />
+              {work.isDemo && <DemoBadge />}
+            </div>
+            <h1 className="mt-2 font-serif text-2xl font-bold leading-tight">{work.title}</h1>
+            {work.aliases.length > 0 && (
+              <p className="mt-1 line-clamp-2 text-xs text-subtle-foreground">
+                又名：{work.aliases.join("、")}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-14 space-y-5 px-5">
+        <div className="surface space-y-4 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[13px] text-muted-foreground">個人評分</span>
+            <RatingStars
+              value={work.rating}
+              onChange={(v) => dramaStore.update(work.id, { rating: v })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1.5">
+              <span className="block text-[13px] text-muted-foreground">追劇狀態</span>
+              <NativeSelect
+                value={work.watchStatus}
+                aria-label="作品觀看狀態"
+                onChange={(e) => {
+                  dramaStore.update(work.id, { watchStatus: e.target.value as WatchStatus });
+                  toast.success(`已設為「${WATCH_STATUS_LABEL[e.target.value as WatchStatus]}」`);
+                }}
+              >
+                {WATCH_STATUS_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {WATCH_STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </label>
+            <label className="space-y-1.5">
+              <span className="block text-[13px] text-muted-foreground">收藏狀態</span>
+              <NativeSelect
+                value={work.collectStatus}
+                aria-label="收藏狀態"
+                onChange={(e) =>
+                  dramaStore.update(work.id, { collectStatus: e.target.value as CollectStatus })
+                }
+              >
+                {COLLECT_STATUS_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {COLLECT_STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-2 border-t border-border pt-3">
+            <div className="min-w-0">
+              <SeriesInfo work={work} />
+              <p className="mt-1 text-xs text-subtle-foreground">
+                全系列 {totals.watched} / {totals.total} 集 · {totals.percent}%
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {work.synopsis && (
+          <details className="surface group p-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-serif text-lg font-semibold">
+              劇情簡介
+              <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
+              {work.synopsis}
+            </p>
+          </details>
+        )}
+
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-lg font-semibold">系列與觀看進度</h2>
+              <p className="text-xs text-subtle-foreground">共 {seasons.length} 季</p>
+            </div>
+            <Button variant="soft" size="sm" onClick={() => setSeasonDialog({ open: true })}>
+              <Plus />
+              新增一季
+            </Button>
+          </div>
+
+          {seasons.length > 1 && (
+            <ChipRow className="mb-3">
+              {seasons.map((s) => (
+                <Chip key={s.id} active={selected?.id === s.id} onClick={() => selectSeason(s.id)}>
+                  第 {s.number} 季
+                  {s.id === work.currentSeasonId && (
+                    <span
+                      className="ml-1.5 size-1.5 rounded-full bg-primary"
+                      aria-label="目前觀看"
+                    />
+                  )}
+                </Chip>
+              ))}
+            </ChipRow>
+          )}
+
+          {selected && (
+            <div className="surface space-y-4 p-4" aria-label={`第 ${selected.number} 季`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold">
+                    第 {selected.number} 季{selected.title ? ` · ${selected.title}` : ""}
+                  </p>
+                  {selected.originTitle && (
+                    <p className="truncate text-xs text-subtle-foreground">
+                      原作品《{selected.originTitle}》
+                    </p>
+                  )}
+                </div>
+                <StatusBadge status={selected.status} />
+              </div>
+
+              <EpisodeStepper work={work} season={selected} />
+
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+                <label className="space-y-1.5">
+                  <span className="block text-[13px] text-muted-foreground">本季狀態</span>
+                  <NativeSelect
+                    value={selected.status}
+                    aria-label="本季觀看狀態"
+                    onChange={(e) =>
+                      dramaStore.upsertSeason(work.id, {
+                        ...selected,
+                        status: e.target.value as WatchStatus,
+                        statusMode: "manual",
+                        updatedAt: new Date().toISOString(),
+                      })
+                    }
+                  >
+                    {WATCH_STATUS_ORDER.map((s) => (
+                      <option key={s} value={s}>
+                        {WATCH_STATUS_LABEL[s]}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </label>
+                {selected.id !== work.currentSeasonId ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      dramaStore.setCurrentSeason(work.id, selected.id);
+                      toast.success(`目前觀看：第 ${selected.number} 季`);
+                    }}
+                  >
+                    設為目前
+                  </Button>
+                ) : (
+                  <span className="flex h-11 items-center px-2 text-xs text-primary">
+                    目前觀看中
+                  </span>
+                )}
+              </div>
+
+              <details className="group border-t border-border pt-2">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <MoreHorizontal className="size-4" />
+                  本季更多
+                  <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="space-y-4 pt-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-subtle-foreground">
+                    <span>
+                      {selected.updateDate ? `更新：${selected.updateDate}` : "未提供更新日期"}
+                    </span>
+                    <span className="text-right">
+                      {selected.rating ? `評分：${selected.rating} 星` : "本季未評分"}
+                    </span>
+                  </div>
+
+                  {selected.source && (
+                    <a
+                      href={hongguoDetailUrl(selected.source.seriesId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block break-all text-xs text-primary underline-offset-4 hover:underline"
+                    >
+                      紅果來源 · ID {selected.source.seriesId}
+                    </a>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSeasonDialog({ open: true, season: selected })}
+                    >
+                      <Pencil /> 編輯本季
+                    </Button>
+                    {seasons.length > 1 && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="向前排序"
+                          disabled={selected.id === seasons[0]?.id}
+                          onClick={() => dramaStore.reorderSeason(work.id, selected.id, -1)}
+                        >
+                          <ChevronUp />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="向後排序"
+                          disabled={selected.id === seasons.at(-1)?.id}
+                          onClick={() => dramaStore.reorderSeason(work.id, selected.id, 1)}
+                        >
+                          <ChevronDown />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmSplit(true)}>
+                          <Scissors /> 拆分
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => setConfirmSeasonDelete(true)}
+                        >
+                          <Trash2 /> 刪除
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </details>
+            </div>
+          )}
+        </section>
+
+        {selected && <ManualWatchMemory workId={work.id} season={selected} />}
+
+        <details className="surface group p-4">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-semibold">
+            作品管理與其他資料
+            <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-4 space-y-5 border-t border-border pt-4">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setMergeOpen(true)}>
+                <FolderInput /> 合併作品
+              </Button>
+              <Button variant="soft" size="sm" onClick={() => setSeasonDialog({ open: true })}>
+                <Plus /> 新增一季
+              </Button>
+            </div>
+
+            {work.source && (
+              <div className="text-xs text-subtle-foreground">
+                <p>來源：紅果短劇 · ID {work.source.seriesId}</p>
+                <a
+                  href={hongguoDetailUrl(work.source.seriesId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-block text-primary underline-offset-4 hover:underline"
+                >
+                  開啟官方頁面
+                </a>
+              </div>
+            )}
+
+            {work.actors.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-sm font-semibold">演員</h3>
+                <div className="flex flex-wrap gap-2">
+                  {work.actors.map((actor) => (
+                    <Link
+                      key={actor}
+                      to="/search"
+                      search={{ q: actor }}
+                      className="rounded-full bg-card px-3 py-1.5 text-sm text-muted-foreground"
+                    >
+                      {actor}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(work.categories.length > 0 || work.tags.length > 0) && (
+              <div>
+                <h3 className="mb-2 text-sm font-semibold">分類與標籤</h3>
+                <div className="flex flex-wrap gap-2">
+                  {work.categories.map((category) => (
+                    <Link
+                      key={category}
+                      to="/library"
+                      search={{ category }}
+                      className="rounded-full bg-primary-soft px-3 py-1.5 text-sm text-primary"
+                    >
+                      {category}
+                    </Link>
+                  ))}
+                  {work.tags.map((tag) => (
+                    <Link
+                      key={tag}
+                      to="/search"
+                      search={{ q: tag }}
+                      className="rounded-full border border-border px-3 py-1.5 text-sm text-muted-foreground"
+                    >
+                      #{tag}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <dl className="space-y-1 text-[11px] text-subtle-foreground">
+              <div className="flex gap-2">
+                <dt>系列 ID</dt>
+                <dd className="truncate font-mono">{work.id}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt>建立</dt>
+                <dd>{new Date(work.createdAt).toLocaleString("zh-TW")}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt>資料修改</dt>
+                <dd>{new Date(work.updatedAt).toLocaleString("zh-TW")}</dd>
+              </div>
+            </dl>
+
+            <Button
+              variant="outline"
+              className="w-full text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 /> 刪除作品
+            </Button>
+          </div>
+        </details>
+      </div>
+
+      <SeasonDialog
+        work={work}
+        season={seasonDialog.season}
+        open={seasonDialog.open}
+        onOpenChange={(open) => setSeasonDialog((previous) => ({ ...previous, open }))}
+        onSaved={(seasonId) => selectSeason(seasonId)}
+      />
+      <MergeDialog work={work} open={mergeOpen} onOpenChange={setMergeOpen} />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`刪除《${work.title}》？`}
+        description={
+          <p>
+            將一併刪除 {seasons.length} 季的觀看進度與備註，刪除後無法復原。建議先到設定匯出備份。
+          </p>
+        }
+        confirmLabel="確定刪除"
+        onConfirm={() => {
+          if (dramaStore.remove(work.id)) {
+            toast.success(`已刪除《${work.title}》`);
+            navigate({ to: "/library", replace: true });
+          }
+        }}
+      />
+
+      {selected && (
+        <ConfirmDialog
+          open={confirmSplit}
+          onOpenChange={setConfirmSplit}
+          title={`將第 ${selected.number} 季拆成獨立作品？`}
+          description={<p>本季來源、進度、評分與備註都會完整移到新的作品卡片。</p>}
+          confirmLabel="確認拆分"
+          onConfirm={() => {
+            const created = dramaStore.splitSeason(work.id, selected.id);
+            if (!created) return toast.error("拆分失敗，原有資料沒有變更。");
+            toast.success(`已拆分為《${created.title}》`);
+            navigate({ to: "/work/$id", params: { id: created.id }, replace: true });
+          }}
+        />
+      )}
+
+      {selected && (
+        <ConfirmDialog
+          open={confirmSeasonDelete}
+          onOpenChange={setConfirmSeasonDelete}
+          title={`刪除第 ${selected.number} 季？`}
+          description={
+            <p>
+              此季的觀看進度（{selected.watchedEpisodes}/{episodeCountLabel(selected)}{" "}
+              集）與備註將被刪除，無法復原。
+            </p>
+          }
+          confirmLabel="刪除本季"
+          onConfirm={() => {
+            if (dramaStore.removeSeason(work.id, selected.id)) {
+              toast.success(`已刪除第 ${selected.number} 季`);
+              navigate({ to: "/work/$id", params: { id: work.id }, search: {}, replace: true });
+            }
+          }}
+        />
+      )}
+    </main>
+  );
+}
