@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { availableEpisodes, episodeCountLabel, seasonPercent } from "@/lib/drama/domain";
 import { dramaStore } from "@/lib/drama/store";
+import { hongguoDetailUrl } from "@/lib/drama/link-import";
 import { WATCH_STATUS_LABEL, WATCH_STATUS_ORDER } from "@/lib/drama/labels";
 import type { Season, WatchStatus, Work } from "@/lib/drama/types";
 import {
@@ -130,6 +131,16 @@ export function EpisodeStepper({
             </NativeSelect>
           </label>
         </div>
+        {season.source && (
+          <a
+            href={hongguoDetailUrl(season.source.seriesId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 block break-all rounded-xl border border-border px-3 py-2.5 text-xs text-primary underline-offset-4 hover:underline"
+          >
+            紅果來源 · ID {season.source.seriesId}
+          </a>
+        )}
       </details>
 
       <Dialog open={completedOpen} onOpenChange={setCompletedOpen}>
