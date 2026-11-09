@@ -13,7 +13,6 @@ import { ProgressBar } from "./ProgressBar";
 import { RatingStars } from "./RatingStars";
 import { DemoBadge, StatusBadge } from "./StatusBadge";
 import { WorkCover } from "./WorkCover";
-import { NewSeasonMark } from "./SeasonManagement";
 
 export function PosterCard({
   work,
@@ -39,7 +38,6 @@ export function PosterCard({
     >
       <div className="relative">
         <WorkCover src={work.cover} title={work.title} eager={eager} />
-        <div className="absolute left-2 top-2 z-10"><NewSeasonMark workId={work.id} /></div>
         {work.isDemo && <DemoBadge className="absolute right-2 top-2" />}
         {season && showProgress && (
           <div className="absolute inset-x-2 bottom-2">
@@ -92,7 +90,6 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
             title={work.title}
             className="w-full rounded-lg [&_img]:object-cover [&_img]:object-top"
           />
-          <div className="absolute left-1 top-1 z-10"><NewSeasonMark workId={work.id} /></div>
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col py-0.5">

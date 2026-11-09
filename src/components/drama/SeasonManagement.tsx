@@ -35,6 +35,20 @@ export function loadSeasonAlerts(): SeasonCandidate[] {
     return [];
   }
 }
+
+/** Keeps Home and the management sheet in sync without touching saved collections. */
+export function useSeasonAlerts() {
+  const [alerts, setAlerts] = useState<SeasonCandidate[]>(loadSeasonAlerts);
+
+  useEffect(() => {
+    const sync = () => setAlerts(loadSeasonAlerts());
+    window.addEventListener(CHANGE_EVENT, sync);
+    return () => window.removeEventListener(CHANGE_EVENT, sync);
+  }, []);
+
+  return [alerts, setAlerts] as const;
+}
+
 function saveSeasonAlerts(value: SeasonCandidate[]) {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(value));
@@ -50,17 +64,11 @@ function dateKey() {
 /** Small entry point used on Home. A daily scan is local-only and never modifies a collection. */
 export function SeasonManagement({ works }: { works: Work[] }) {
   const search = useServerFn(searchHongguo);
-  const [alerts, setAlerts] = useState<SeasonCandidate[]>(loadSeasonAlerts);
+  const [alerts, setAlerts] = useSeasonAlerts();
   const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    const sync = () => setAlerts(loadSeasonAlerts());
-    window.addEventListener(CHANGE_EVENT, sync);
-    return () => window.removeEventListener(CHANGE_EVENT, sync);
-  }, []);
 
   async function check(manual = false) {
     if (checking) return;
@@ -144,7 +152,6 @@ export function SeasonManagement({ works }: { works: Work[] }) {
         selectedIds.includes(candidate.id) && !candidate.sameSeason && candidate.seasonNumber,
     );
     if (!chosen.length) return;
-    if (!window.confirm(`確認加入 ${chosen.length} 個已選新季？加入後不會切換目前季數。`)) return;
     const failed: string[] = [];
     for (const candidate of chosen) {
       const result = dramaStore.addDiscoveredSeason(candidate.workId, {

@@ -47,7 +47,7 @@ export function HomeDiscovery({
   only,
 }: {
   works: Work[];
-  only?: "comicRanking" | "aiRanking" | "recommendations" | "categories";
+  only?: "rankings" | "comicRanking" | "aiRanking" | "recommendations" | "categories";
 }) {
   const getRanking = useServerFn(getHongguoRanking);
   const searchOnline = useServerFn(searchHongguo);
@@ -229,7 +229,19 @@ export function HomeDiscovery({
 
   return (
     <div className="space-y-9">
-      {(!only || only === "comicRanking") && (
+      {(!only || only === "rankings") && (
+        <CombinedRankingSection
+          comic={comic.data}
+          ai={ai.data}
+          pending={comic.isPending && ai.isPending}
+          retry={() => {
+            setComicRefresh((value) => value + 1);
+            setAiRefresh((value) => value + 1);
+          }}
+          works={works}
+        />
+      )}
+      {only === "comicRanking" && (
         <RankingSection
           title="漫劇熱榜"
           kind="comic"
@@ -240,7 +252,7 @@ export function HomeDiscovery({
           works={works}
         />
       )}
-      {(!only || only === "aiRanking") && (
+      {only === "aiRanking" && (
         <RankingSection
           title="AI 劇熱榜"
           kind="ai"
@@ -337,6 +349,62 @@ export function HomeDiscovery({
         </section>
       )}
     </div>
+  );
+}
+
+function CombinedRankingSection({
+  comic,
+  ai,
+  pending,
+  retry,
+  works,
+}: {
+  comic: ReturnType<typeof useRanking>["data"];
+  ai: ReturnType<typeof useRanking>["data"];
+  pending: boolean;
+  retry: () => void;
+  works: Work[];
+}) {
+  const items = uniqueOnline([
+    ...(comic?.ok ? comic.items : []),
+    ...(ai?.ok ? ai.items : []),
+  ]);
+  const message = comic?.ok || ai?.ok ? null : comic?.message ?? ai?.message;
+
+  return (
+    <section className="px-5" aria-labelledby="hot-ranking-title">
+      <div className="mb-3 flex items-center gap-2">
+        <Flame className="size-[18px] text-gold" />
+        <h2 id="hot-ranking-title" className="font-serif text-lg font-semibold">
+          熱播榜
+        </h2>
+        <span className="text-xs text-muted-foreground">漫劇・AI 劇</span>
+      </div>
+      {pending ? (
+        <div className="no-scrollbar -mx-5 flex gap-3 overflow-hidden px-5" aria-label="熱播榜載入中">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="w-[132px] shrink-0 animate-pulse">
+              <div className="aspect-[2/3] rounded-xl bg-elevated" />
+              <div className="mt-2 h-4 rounded bg-elevated" />
+            </div>
+          ))}
+        </div>
+      ) : items.length ? (
+        <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1" aria-label="熱播榜橫向滑動作品">
+          {items.map((item) => (
+            <RankCard key={item.seriesId} item={item} works={works} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-4 text-sm text-muted-foreground">
+          <span>{message ?? "暫時無法取得榜單"}</span>
+          <Button type="button" variant="secondary" size="sm" onClick={retry}>
+            <RefreshCw className="size-3.5" />
+            重新整理
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }
 

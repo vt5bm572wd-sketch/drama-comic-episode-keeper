@@ -427,6 +427,17 @@ export function WorkForm({
               onChange={(e) => set("updateDate", e.target.value)}
               className="text-center"
             />
+            {d.updateDate && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mt-2"
+                onClick={() => set("updateDate", "")}
+              >
+                清除日期
+              </Button>
+            )}
           </Field>
         </div>
       )}

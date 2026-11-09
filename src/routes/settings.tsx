@@ -3,10 +3,7 @@ import {
   AlertTriangle,
   Download,
   FileUp,
-  RotateCcw,
   ShieldCheck,
-  Sparkles,
-  Languages,
   Trash2,
   HardDrive,
   RefreshCw,
@@ -58,8 +55,6 @@ function SettingsPage() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [dupMode, setDupMode] = useState<"skip" | "copy">("skip");
   const [confirmClear, setConfirmClear] = useState(false);
-  const [confirmDemo, setConfirmDemo] = useState(false);
-  const [confirmRollback, setConfirmRollback] = useState(false);
   const [storage, setStorage] = useState<CoverStorageStats | null>(null);
   const [browserBytes, setBrowserBytes] = useState<number | null>(null);
   const [optimizing, setOptimizing] = useState(false);
@@ -100,7 +95,6 @@ function SettingsPage() {
       </main>
     );
   const demoCount = works.filter((w) => w.isDemo).length;
-  const migration = dramaRepo.getMigrationReport();
   const localBytes =
     typeof window !== "undefined"
       ? new Blob([window.localStorage.getItem(dramaRepo.storageKey) ?? ""]).size
@@ -279,108 +273,6 @@ function SettingsPage() {
             onChange={(e) => pickFile(e.target.files?.[0])}
           />
         </Group>
-        <Group title="資料整理">
-          <Row
-            icon={Sparkles}
-            title="智能整理舊收藏"
-            desc="先建立完整快照，再合併高信心的第一季與續季；衝突項目保留待確認"
-            action={
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  const r = dramaStore.organizeLegacySeries();
-                  if (!r.merged)
-                    return void toast(
-                      r.pending.length
-                        ? `有 ${r.pending.length} 部需要手動確認`
-                        : "沒有需要整理的舊收藏",
-                    );
-                  toast.success(`已合併 ${r.merged} 部續季`);
-                }}
-              >
-                開始整理
-              </Button>
-            }
-          />
-          {dramaStore.getMergeSnapshot() && (
-            <Row
-              icon={RotateCcw}
-              title="復原上次系列整理"
-              desc="完整恢復合併前的作品、季數、進度、評分、備註與來源"
-              action={
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => dramaStore.undoLastMerge() && toast.success("已恢復合併前資料")}
-                >
-                  一鍵復原
-                </Button>
-              }
-            />
-          )}
-          <Row
-            icon={Languages}
-            title="紅果作品批次繁體化"
-            desc="轉為台灣繁體並保留紅果原文；個人備註不會更動"
-            action={
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={async () => {
-                  const r = await dramaStore.traditionalizeAllHongguo();
-                  if (!r.ok) return toast.error("繁體化失敗，原有資料沒有變更。");
-                  toast.success(
-                    r.changed ? `已更新 ${r.changed} 個系列` : "目前沒有需要轉換的作品",
-                  );
-                }}
-              >
-                開始轉換
-              </Button>
-            }
-          />
-          {migration && (
-            <Row
-              icon={ShieldCheck}
-              title="智能系列資料遷移"
-              desc={`已驗證 ${migration.before} → ${migration.after} 筆，遷移前備份仍保留`}
-              action={
-                <Button size="sm" variant="ghost" onClick={() => setConfirmRollback(true)}>
-                  回復舊版
-                </Button>
-              }
-            />
-          )}
-        </Group>
-        <Group title="示範資料">
-          {demoCount > 0 ? (
-            <Row
-              icon={Sparkles}
-              title="移除示範資料"
-              desc={`移除 ${demoCount} 部標示為「示範」的虛構作品，你新增的作品不受影響`}
-              action={
-                <Button size="sm" variant="secondary" onClick={() => setConfirmDemo(true)}>
-                  移除
-                </Button>
-              }
-            />
-          ) : (
-            <Row
-              icon={RotateCcw}
-              title="載入示範資料"
-              desc="加入 7 部虛構示範作品，方便體驗功能"
-              action={
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => dramaStore.restoreDemo() && toast.success("已載入示範資料")}
-                >
-                  載入
-                </Button>
-              }
-            />
-          )}
-        </Group>
         <Group title="危險區域">
           <Row
             icon={Trash2}
@@ -505,27 +397,6 @@ function SettingsPage() {
           )}
         </DialogContent>
       </Dialog>
-      <ConfirmDialog
-        open={confirmRollback}
-        onOpenChange={setConfirmRollback}
-        title="回復遷移前資料？"
-        description={<p>會回到 V1 遷移前的完整本機備份；遷移後新增的修改將不會保留。</p>}
-        confirmText="回復"
-        confirmLabel="確認回復舊版"
-        onConfirm={() => {
-          if (!dramaRepo.rollbackMigration()) return toast.error("找不到遷移前備份。");
-          dramaStore.reload();
-          toast.success("已回復遷移前資料");
-        }}
-      />
-      <ConfirmDialog
-        open={confirmDemo}
-        onOpenChange={setConfirmDemo}
-        title="移除示範資料？"
-        description={<p>將移除 {demoCount} 部示範作品。之後可在此重新載入。</p>}
-        confirmLabel="移除"
-        onConfirm={() => dramaStore.removeDemo() && toast.success("已移除示範資料")}
-      />
       <ConfirmDialog
         open={confirmClear}
         onOpenChange={setConfirmClear}

@@ -1,20 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Film, Plus, Search } from "lucide-react";
+import { ChevronRight, Film, Search } from "lucide-react";
 import { AddFab } from "@/components/drama/AddFab";
 import { CategoryManager } from "@/components/drama/CategoryManager";
 import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
 import { HomeDiscovery } from "@/components/drama/HomeDiscovery";
 import { Section } from "@/components/drama/fields";
 import { PosterCard } from "@/components/drama/WorkCards";
-import { SeasonManagement } from "@/components/drama/SeasonManagement";
+import { SeasonManagement, useSeasonAlerts } from "@/components/drama/SeasonManagement";
 import { Button } from "@/components/ui/button";
-import {
-  availableEpisodes,
-  computeStats,
-  newlyAvailableSeasons,
-  recentlyAdded,
-  recentlyWatched,
-} from "@/lib/drama/domain";
+import { computeStats, recentlyAdded, recentlyWatched } from "@/lib/drama/domain";
+import type { SeasonCandidate } from "@/lib/drama/season-management";
 import { dramaStore, useWorks } from "@/lib/drama/store";
 import type { Work } from "@/lib/drama/types";
 
@@ -38,7 +33,7 @@ function HomePage() {
   return (
     <main className="min-h-[100dvh] bg-background pb-nav">
       <header className="pt-safe px-5 pb-3">
-        <div className="rounded-[28px] border border-border/60 bg-gradient-to-br from-[#D5ECF2]/80 via-[#FFFAE8] to-[#FADAE2]/75 px-4 pb-4 pt-1 shadow-card">
+        <div className="surface rounded-[28px] px-4 pb-4 pt-1">
           <p className="brand-title pt-4 text-2xl text-foreground">NINA DRAMA</p>
           <p className="mt-1 text-xs tracking-[0.2em] text-subtle-foreground">
             私人短劇・漫劇收藏館
@@ -87,6 +82,7 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
   const stats = computeStats(works);
   const watched = recentlyWatched(works, 10);
   const added = recentlyAdded(works, 10);
+  const alerts = useSeasonAlerts()[0];
   const demoCount = works.filter((w) => w.isDemo).length;
   const today = localDateKey();
   const upcoming = works
@@ -95,7 +91,17 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
     )
     .sort((a, b) => (a.updateDate ?? "").localeCompare(b.updateDate ?? ""))
     .slice(0, 10);
-  const newEpisodes = works.filter((work) => newlyAvailableSeasons(work).length > 0);
+  const pendingNewSeasons = Array.from(
+    new Map(
+      alerts
+        .filter((candidate) => !candidate.sameSeason && candidate.seasonNumber != null)
+        .map((candidate) => {
+          const work = works.find((item) => item.id === candidate.workId);
+          return work ? [work.id, { work, candidate }] : null;
+        })
+        .filter((item): item is [string, { work: Work; candidate: SeasonCandidate }] => item !== null),
+    ).values(),
+  );
   return (
     <div className="space-y-6">
       <SeasonManagement works={works} />
@@ -137,9 +143,9 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
         )}
       </Section>
 
-      {newEpisodes.length > 0 && (
-        <Section title="新集待看">
-          <NewEpisodesRow works={newEpisodes} />
+      {pendingNewSeasons.length > 0 && (
+        <Section title="新季更新">
+          <NewSeasonsRow items={pendingNewSeasons} />
         </Section>
       )}
 
@@ -150,8 +156,7 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
       )}
 
       <HomeDiscovery works={works} only="recommendations" />
-      <HomeDiscovery works={works} only="comicRanking" />
-      <HomeDiscovery works={works} only="aiRanking" />
+      <HomeDiscovery works={works} only="rankings" />
 
       <Section
         title="最近收藏"
@@ -230,28 +235,20 @@ function UpcomingRow({ works }: { works: Work[] }) {
   );
 }
 
-function NewEpisodesRow({ works }: { works: Work[] }) {
+function NewSeasonsRow({
+  items,
+}: {
+  items: Array<{ work: Work; candidate: SeasonCandidate }>;
+}) {
   return (
     <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
-      {works.map((work) => {
-        const season = newlyAvailableSeasons(work)[0]!;
-        const unread = availableEpisodes(season) - season.watchedEpisodes;
+      {items.map(({ work, candidate }) => {
         return (
-          <div key={`${work.id}-${season.id}`} className="w-[132px] shrink-0">
+          <div key={candidate.id} className="w-[132px] shrink-0">
             <PosterCard work={work} />
             <p className="mt-1 text-[11px] text-primary">
-              第 {season.number} 季 · 還有 {unread} 集未看
+              發現第 {candidate.seasonNumber} 季 · 尚未加入
             </p>
-            <Button
-              className="mt-2 w-full"
-              size="sm"
-              variant="soft"
-              disabled={unread <= 0}
-              onClick={() => dramaStore.step(work.id, season.id, 1)}
-            >
-              <Plus />
-              ＋1 集
-            </Button>
           </div>
         );
       })}
