@@ -7,6 +7,7 @@ export interface SeasonCandidate {
   id: string;
   workId: string;
   title: string;
+  coverUrl: string | null;
   seriesId: string;
   totalEpisodes: number | null;
   seasonNumber: number | null;
@@ -65,6 +66,7 @@ export function findSeasonCandidates(work: Work, results: OnlineWork[]): SeasonC
       id: candidateId(work.id, online.seriesId),
       workId: work.id,
       title: online.title,
+      coverUrl: online.coverUrl,
       seriesId: online.seriesId,
       totalEpisodes: online.totalEpisodes,
       seasonNumber: identity.seasonNumber,
