@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { searchHongguo } from "@/lib/drama/hongguo.functions";
 import {
-  findSeasonCandidates,
+  discoverSeasonCandidates,
   retryWithBackoff,
   seasonSearchTerms,
   sortWorksForSeasonCheck,
@@ -78,19 +78,19 @@ export function SeasonManagement({ works }: { works: Work[] }) {
         const work = queue[cursor++];
         if (!work) continue;
         let matches: SeasonCandidate[] = [];
-        for (const term of seasonSearchTerms(work)) {
-          try {
+        try {
+          matches = await discoverSeasonCandidates(work, async (query, page) => {
             const result = await retryWithBackoff(
-              () => search({ data: { query: term, page: 1 } }),
+              () => search({ data: { query, page } }).then((response) => {
+                if (!response.ok) throw new Error(response.message);
+                return response;
+              }),
               { attempts: 3, baseDelayMs: 600 },
             );
-            if (!result.ok) throw new Error(result.message);
-            matches = findSeasonCandidates(work, result.items);
-            if (matches.length) break;
-          } catch {
-            failedWorkIds.add(work.id);
-            break;
-          }
+            return { items: result.items, hasMore: result.hasMore };
+          });
+        } catch {
+          failedWorkIds.add(work.id);
         }
         next.push(...matches);
       }
