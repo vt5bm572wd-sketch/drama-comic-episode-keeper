@@ -2,13 +2,10 @@ import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-r
 import {
   ChevronDown,
   ChevronLeft,
-  ChevronUp,
   FileQuestion,
   FolderInput,
-  MoreHorizontal,
   Pencil,
   Plus,
-  Scissors,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
@@ -27,7 +24,6 @@ import { DemoBadge, StatusBadge, TypeBadge } from "@/components/drama/StatusBadg
 import { WorkCover } from "@/components/drama/WorkCover";
 import { Button } from "@/components/ui/button";
 import { currentSeason, episodeCountLabel, sortSeasons, workTotals } from "@/lib/drama/domain";
-import { hongguoDetailUrl } from "@/lib/drama/link-import";
 import {
   COLLECT_STATUS_LABEL,
   COLLECT_STATUS_ORDER,
@@ -272,68 +268,6 @@ function WorkDetail({ work }: { work: Work }) {
 
               <EpisodeStepper work={work} season={selected} />
 
-              <details className="group border-t border-border pt-2">
-                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <MoreHorizontal className="size-4" />
-                  本季更多
-                  <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
-                </summary>
-                <div className="space-y-4 pt-2">
-                  {selected.source && (
-                    <a
-                      href={hongguoDetailUrl(selected.source.seriesId)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block break-all text-xs text-primary underline-offset-4 hover:underline"
-                    >
-                      紅果來源 · ID {selected.source.seriesId}
-                    </a>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSeasonDialog({ open: true, season: selected })}
-                    >
-                      <Pencil /> 編輯本季
-                    </Button>
-                    {seasons.length > 1 && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="向前排序"
-                          disabled={selected.id === seasons[0]?.id}
-                          onClick={() => dramaStore.reorderSeason(work.id, selected.id, -1)}
-                        >
-                          <ChevronUp />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="向後排序"
-                          disabled={selected.id === seasons.at(-1)?.id}
-                          onClick={() => dramaStore.reorderSeason(work.id, selected.id, 1)}
-                        >
-                          <ChevronDown />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setConfirmSplit(true)}>
-                          <Scissors /> 拆分
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => setConfirmSeasonDelete(true)}
-                        >
-                          <Trash2 /> 刪除
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </details>
             </div>
           )}
         </section>
