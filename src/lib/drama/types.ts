@@ -35,6 +35,8 @@ export interface Season {
   rating?: number | undefined;
   updateDate?: string | null | undefined;
   totalEpisodes: number;
+  /** false 表示來源沒有提供集數；0 不是實際的「0 集」。舊資料省略時維持原行為。 */
+  episodeCountKnown?: boolean | undefined;
   /** 實際已更新集數；舊資料使用原總集數 */
   currentEpisodes?: number | undefined;
   watchedEpisodes: number;

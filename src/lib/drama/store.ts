@@ -10,6 +10,7 @@ import {
   setSeasonProgress,
   stepEpisode,
   uid,
+  makeSeason,
 } from "./domain";
 import { findSeriesMatch, parseSeriesIdentity } from "./series-identity";
 import { CorruptDramaDataError, LocalStorageRepository, type DramaRepository } from "./repository";
@@ -364,9 +365,75 @@ export function createDramaStore(repo: DramaRepository) {
       });
     },
 
+    /** 僅供「新季提醒」確認後使用：絕不合併舊卡片，也不改 currentSeasonId 或舊季。 */
+    addDiscoveredSeason(
+      id: string,
+      input: { number: number; title: string; totalEpisodes: number | null; seriesId: string },
+    ) {
+      const work = ensureLoaded().find((item) => item.id === id);
+      if (!work || !Number.isInteger(input.number) || input.number < 1)
+        return { ok: false as const, reason: "invalid" as const };
+      const existing = work.seasons.find((season) => season.number === input.number);
+      if (existing)
+        return { ok: false as const, reason: "season_exists" as const, season: existing };
+      if (
+        work.seasons.some(
+          (season) =>
+            season.source?.seriesId === input.seriesId ||
+            season.sources?.some((source) => source.seriesId === input.seriesId),
+        )
+      )
+        return { ok: false as const, reason: "source_exists" as const };
+      const stamp = now();
+      const season = makeSeason(
+        {
+          id: uid("s"),
+          number: input.number,
+          title: input.title,
+          originTitle: input.title,
+          totalEpisodes: input.totalEpisodes ?? 0,
+          currentEpisodes: input.totalEpisodes ?? 0,
+          episodeCountKnown: input.totalEpisodes != null,
+          watchedEpisodes: 0,
+          status: "unwatched",
+          statusMode: "manual",
+          note: "",
+          rating: 0,
+          watchMemory: {},
+          source: {
+            platform: "hongguo",
+            seriesId: input.seriesId,
+            url: `https://hongguoduanju.com/detail?series_id=${input.seriesId}`,
+            linkedAt: stamp,
+          },
+          createdAt: stamp,
+          updatedAt: stamp,
+        },
+        stamp,
+      );
+      const ok = updateOne(id, (current) => ({
+        ...current,
+        seasons: [...current.seasons, season],
+        // New season is a series-card hint only; do not overwrite a user's manually selected state.
+        watchStatus: current.watchStatus,
+        currentSeasonId: current.currentSeasonId,
+        updatedAt: stamp,
+      }));
+      return ok
+        ? { ok: true as const, season }
+        : { ok: false as const, reason: "save_failed" as const };
+    },
+
     setSeasonMemory(id: string, seasonId: string, memory: WatchMemory) {
-      if (!ensureLoaded().some(w => w.id === id && w.seasons.some(s => s.id === seasonId))) return false;
-      return updateOne(id, w => ({ ...w, updatedAt: now(), seasons: w.seasons.map(s => s.id === seasonId ? { ...s, watchMemory: memory, updatedAt: now() } : s) }));
+      if (!ensureLoaded().some((w) => w.id === id && w.seasons.some((s) => s.id === seasonId)))
+        return false;
+      return updateOne(id, (w) => ({
+        ...w,
+        updatedAt: now(),
+        seasons: w.seasons.map((s) =>
+          s.id === seasonId ? { ...s, watchMemory: memory, updatedAt: now() } : s,
+        ),
+      }));
     },
 
     removeSeason(id: string, seasonId: string) {

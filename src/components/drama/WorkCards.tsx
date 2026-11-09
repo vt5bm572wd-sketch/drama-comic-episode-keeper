@@ -1,5 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { availableEpisodes, currentSeason, seasonPercent, workTotals } from "@/lib/drama/domain";
+import {
+  availableEpisodes,
+  currentSeason,
+  episodeCountLabel,
+  seasonPercent,
+  workTotals,
+} from "@/lib/drama/domain";
 import { SERIES_STATUS_LABEL } from "@/lib/drama/labels";
 import type { Work } from "@/lib/drama/types";
 import { EpisodeStepper } from "./EpisodeStepper";
@@ -7,6 +13,7 @@ import { ProgressBar } from "./ProgressBar";
 import { RatingStars } from "./RatingStars";
 import { DemoBadge, StatusBadge } from "./StatusBadge";
 import { WorkCover } from "./WorkCover";
+import { NewSeasonMark } from "./SeasonManagement";
 
 export function PosterCard({
   work,
@@ -32,6 +39,7 @@ export function PosterCard({
     >
       <div className="relative">
         <WorkCover src={work.cover} title={work.title} eager={eager} />
+        <NewSeasonMark workId={work.id} />
         {work.isDemo && <DemoBadge className="absolute left-2 top-2" />}
         {season && showProgress && (
           <div className="absolute inset-x-2 bottom-2">
@@ -87,6 +95,7 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
         <div className="flex min-w-0 flex-1 flex-col py-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <h3 className="truncate font-serif text-base font-semibold">{work.title}</h3>
+            <NewSeasonMark workId={work.id} />
             {work.isDemo && <DemoBadge />}
           </div>
 
@@ -106,7 +115,9 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
 
           {withStepper && season ? (
             <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1 pt-2 text-[11px] text-subtle-foreground">
-              <span>第 {season.number} 季 · 已看 {season.watchedEpisodes}/{availableEpisodes(season)} 集</span>
+              <span>
+                第 {season.number} 季 · 已看 {season.watchedEpisodes}/{episodeCountLabel(season)} 集
+              </span>
               <span className="text-right tabular-nums">{seasonPercentValue}%</span>
               <span className={unread > 0 ? "font-medium text-primary" : "text-muted-foreground"}>
                 {unread > 0 ? `全系列還有 ${unread} 集未看` : "目前已追完"}

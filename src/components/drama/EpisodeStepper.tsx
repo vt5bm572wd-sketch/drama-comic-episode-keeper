@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { availableEpisodes, seasonPercent } from "@/lib/drama/domain";
+import { availableEpisodes, episodeCountLabel, seasonPercent } from "@/lib/drama/domain";
 import { dramaStore } from "@/lib/drama/store";
 import { WATCH_STATUS_LABEL, WATCH_STATUS_ORDER } from "@/lib/drama/labels";
 import type { Season, WatchStatus, Work } from "@/lib/drama/types";
@@ -27,7 +27,8 @@ export function EpisodeStepper({
   compact?: boolean;
 }) {
   const atStart = season.watchedEpisodes <= 0;
-  const atEnd = season.watchedEpisodes >= availableEpisodes(season);
+  const atEnd =
+    season.episodeCountKnown === false || season.watchedEpisodes >= availableEpisodes(season);
   const percent = seasonPercent(season);
   const [direct, setDirect] = useState(String(season.watchedEpisodes));
   const [completedOpen, setCompletedOpen] = useState(false);
@@ -45,7 +46,7 @@ export function EpisodeStepper({
               {season.watchedEpisodes}
             </span>
             {" / "}
-            <span className="tabular-nums">{availableEpisodes(season)}</span> 集
+            <span className="tabular-nums">{episodeCountLabel(season)}</span> 集
           </span>
           <span className="shrink-0 text-xs tabular-nums text-subtle-foreground">{percent}%</span>
         </div>

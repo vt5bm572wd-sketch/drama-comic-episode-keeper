@@ -6,6 +6,7 @@ import { EmptyState, LoadingBlock } from "@/components/drama/EmptyState";
 import { HomeDiscovery } from "@/components/drama/HomeDiscovery";
 import { Section } from "@/components/drama/fields";
 import { PosterCard } from "@/components/drama/WorkCards";
+import { SeasonManagement } from "@/components/drama/SeasonManagement";
 import { Button } from "@/components/ui/button";
 import {
   availableEpisodes,
@@ -87,6 +88,7 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
   const newEpisodes = works.filter((work) => newlyAvailableSeasons(work).length > 0);
   return (
     <div className="space-y-9">
+      <SeasonManagement works={works} />
       {works.length === 0 && (
         <EmptyState
           icon={Film}

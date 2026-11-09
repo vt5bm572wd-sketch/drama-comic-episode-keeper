@@ -24,6 +24,12 @@ export function availableEpisodes(
   return season.currentEpisodes ?? season.totalEpisodes;
 }
 
+export function episodeCountLabel(
+  season: Pick<Season, "totalEpisodes" | "episodeCountKnown">,
+): string {
+  return season.episodeCountKnown === false ? "未提供" : `${season.totalEpisodes}`;
+}
+
 export function seasonPercent(
   season: Pick<Season, "watchedEpisodes" | "totalEpisodes" | "currentEpisodes">,
 ): number {
@@ -163,6 +169,7 @@ export function makeSeason(partial: SeasonInput, now: string): Season {
     rating: partial.rating,
     updateDate: partial.updateDate ?? null,
     totalEpisodes: total,
+    episodeCountKnown: partial.episodeCountKnown ?? total > 0,
     currentEpisodes: partial.currentEpisodes ?? total,
     watchedEpisodes: clampEpisode(partial.watchedEpisodes ?? 0, partial.currentEpisodes ?? total),
     caughtUpEpisodes: partial.caughtUpEpisodes,
@@ -451,6 +458,7 @@ export function migrateWork(work: Work): Work {
     seasons: work.seasons.map((s, index) => ({
       ...s,
       currentEpisodes: s.currentEpisodes ?? s.totalEpisodes,
+      episodeCountKnown: s.episodeCountKnown ?? s.totalEpisodes > 0,
       watchedEpisodes: s.watchedEpisodes ?? 0,
       caughtUpEpisodes:
         s.caughtUpEpisodes ??

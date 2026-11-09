@@ -35,7 +35,7 @@ export function SeasonDialog({
   useEffect(() => {
     if (!open) return;
     setNumber(String(season?.number ?? nextSeasonNumber(work)));
-    setTotal(season ? String(season.totalEpisodes) : "");
+    setTotal(season?.episodeCountKnown === false ? "" : season ? String(season.totalEpisodes) : "");
     setWatched(String(season?.watchedEpisodes ?? 0));
     setStatus(season?.status ?? "pending");
     setTitle(season?.title ?? season?.originTitle ?? "");
@@ -63,6 +63,7 @@ export function SeasonDialog({
         number: n,
         title: title.trim() || season?.title,
         totalEpisodes: total === "" ? 0 : t,
+        episodeCountKnown: total !== "",
         currentEpisodes: total === "" ? 0 : t,
         watchedEpisodes: w,
         status,
