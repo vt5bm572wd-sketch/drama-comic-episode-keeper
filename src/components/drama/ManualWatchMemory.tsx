@@ -118,7 +118,7 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
     <section aria-label="我的觀看記憶" className="surface overflow-hidden p-4 sm:p-6">
       <div className="mb-4">
         <h2 className="font-serif text-xl font-semibold">我的觀看記憶</h2>
-        <p className="text-xs text-subtle-foreground">第 {season.number} 季 · 純手動記錄</p>
+        <p className="text-xs text-subtle-foreground">第 {season.number} 季</p>
       </div>
 
       <div
@@ -149,7 +149,7 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
 
       {tab === "plot" && (
         <div>
-          <h3 className="mb-3 font-semibold">📖 劇情重點</h3>
+          
           {memory.plot && editingKey !== "plot" && (
             <ol className="mb-4 space-y-4">
               {plotLines(memory.plot).map((line, index) => (
