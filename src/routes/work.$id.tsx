@@ -30,6 +30,7 @@ import {
   WATCH_STATUS_LABEL,
   WATCH_STATUS_ORDER,
 } from "@/lib/drama/labels";
+import { hongguoDetailUrl } from "@/lib/drama/link-import";
 import { dramaStore, useWork } from "@/lib/drama/store";
 import type { CollectStatus, Season, WatchStatus, Work } from "@/lib/drama/types";
 
