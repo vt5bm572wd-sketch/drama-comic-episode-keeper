@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { makeSeason } from "./domain";
 import { MemoryRepository } from "./repository";
-import { findSeasonCandidates, sortWorksForSeasonCheck } from "./season-management";
+import {
+  findSeasonCandidates,
+  retryWithBackoff,
+  sortWorksForSeasonCheck,
+} from "./season-management";
 import { createDramaStore } from "./store";
 import type { OnlineWork } from "./hongguo-data";
 import type { Work } from "./types";
@@ -152,5 +156,37 @@ describe("確認加入的新季資料保護", () => {
       }).ok,
     ).toBe(false);
     expect(store.get("work")!.seasons).toHaveLength(1);
+  });
+});
+
+describe("每日檢查的有限重試", () => {
+  it("最多重試三次，使用指數退避後回傳成功結果", async () => {
+    let calls = 0;
+    const delays: number[] = [];
+    const result = await retryWithBackoff(
+      async () => {
+        calls++;
+        if (calls < 3) throw new Error("temporary");
+        return "ok";
+      },
+      { baseDelayMs: 600, wait: async (milliseconds) => void delays.push(milliseconds) },
+    );
+    expect(result).toBe("ok");
+    expect(calls).toBe(3);
+    expect(delays).toEqual([600, 1200]);
+  });
+
+  it("失敗時不超過三次", async () => {
+    let calls = 0;
+    await expect(
+      retryWithBackoff(
+        async () => {
+          calls++;
+          throw new Error("unavailable");
+        },
+        { baseDelayMs: 0, wait: async () => undefined },
+      ),
+    ).rejects.toThrow("unavailable");
+    expect(calls).toBe(3);
   });
 });

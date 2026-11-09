@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { searchHongguo } from "@/lib/drama/hongguo.functions";
 import {
   findSeasonCandidates,
+  retryWithBackoff,
   seasonSearchTerms,
   sortWorksForSeasonCheck,
   type SeasonCandidate,
@@ -67,7 +68,7 @@ export function SeasonManagement({ works }: { works: Work[] }) {
     setChecking(true);
     setError(null);
     const next: SeasonCandidate[] = [];
-    const failures: string[] = [];
+    const failedWorkIds = new Set<string>();
     // Two workers prevent a large library from creating a request burst. Each work uses its
     // canonical title first, then aliases only when the first query gives no usable candidate.
     const queue = sortWorksForSeasonCheck(works).filter((work) => !work.isDemo);
@@ -79,12 +80,15 @@ export function SeasonManagement({ works }: { works: Work[] }) {
         let matches: SeasonCandidate[] = [];
         for (const term of seasonSearchTerms(work)) {
           try {
-            const result = await search({ data: { query: term, page: 1 } });
+            const result = await retryWithBackoff(
+              () => search({ data: { query: term, page: 1 } }),
+              { attempts: 3, baseDelayMs: 600 },
+            );
             if (!result.ok) throw new Error(result.message);
             matches = findSeasonCandidates(work, result.items);
             if (matches.length) break;
-          } catch (cause) {
-            failures.push(cause instanceof Error ? cause.message : "紅果搜尋失敗");
+          } catch {
+            failedWorkIds.add(work.id);
             break;
           }
         }
@@ -92,13 +96,15 @@ export function SeasonManagement({ works }: { works: Work[] }) {
       }
     }
     await Promise.all([worker(), worker()]);
+    // Failed work must retain its earlier alert. A network failure never means "no new season".
+    const retained = loadSeasonAlerts().filter((candidate) => failedWorkIds.has(candidate.workId));
     const deduped = Array.from(
-      new Map(next.map((candidate) => [candidate.id, candidate])).values(),
+      new Map([...retained, ...next].map((candidate) => [candidate.id, candidate])).values(),
     );
     saveSeasonAlerts(deduped);
     setAlerts(deduped);
-    if (!failures.length) window.localStorage.setItem(DAILY_KEY, dateKey());
-    else setError(`部分搜尋失敗（${failures.length} 部）；未把失敗視為「沒有新季」。`);
+    if (!failedWorkIds.size) window.localStorage.setItem(DAILY_KEY, dateKey());
+    else setError(`部分搜尋失敗（${failedWorkIds.size} 部）；未把失敗視為「沒有新季」。`);
     setChecking(false);
     if (manual)
       toast.success(deduped.length ? `找到 ${deduped.length} 個疑似新季` : "目前沒有發現疑似新季");

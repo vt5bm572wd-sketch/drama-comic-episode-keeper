@@ -107,3 +107,29 @@ export function seasonSearchTerms(work: Work): string[] {
     ),
   ).slice(0, 3);
 }
+
+/** Bounded retry helper. The caller owns persistence and decides whether an error is retryable. */
+export async function retryWithBackoff<T>(
+  task: () => Promise<T>,
+  options: {
+    attempts?: number;
+    baseDelayMs?: number;
+    wait?: (milliseconds: number) => Promise<void>;
+  } = {},
+): Promise<T> {
+  const attempts = Math.max(1, Math.min(options.attempts ?? 3, 3));
+  const baseDelayMs = Math.max(0, options.baseDelayMs ?? 600);
+  const wait =
+    options.wait ??
+    ((milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
+  let failure: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await task();
+    } catch (error) {
+      failure = error;
+      if (attempt < attempts - 1) await wait(baseDelayMs * 2 ** attempt);
+    }
+  }
+  throw failure;
+}
