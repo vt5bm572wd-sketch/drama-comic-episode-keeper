@@ -39,8 +39,8 @@ export function PosterCard({
     >
       <div className="relative">
         <WorkCover src={work.cover} title={work.title} eager={eager} />
-        <NewSeasonMark workId={work.id} />
-        {work.isDemo && <DemoBadge className="absolute left-2 top-2" />}
+        <div className="absolute left-2 top-2 z-10"><NewSeasonMark workId={work.id} /></div>
+        {work.isDemo && <DemoBadge className="absolute right-2 top-2" />}
         {season && showProgress && (
           <div className="absolute inset-x-2 bottom-2">
             <ProgressBar value={percent} className="h-1 bg-background/60" />
