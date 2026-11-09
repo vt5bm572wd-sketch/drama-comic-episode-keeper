@@ -3,6 +3,7 @@ import { makeSeason } from "./domain";
 import { MemoryRepository } from "./repository";
 import {
   findSeasonCandidates,
+  discoverSeasonCandidates,
   retryWithBackoff,
   sortWorksForSeasonCheck,
 } from "./season-management";
@@ -185,5 +186,67 @@ describe("每日檢查的有限重試", () => {
       ),
     ).rejects.toThrow("unavailable");
     expect(calls).toBe(3);
+  });
+});
+
+describe("冰冷重遇 1→8 季缺口回歸", () => {
+  const original = { ...work(), title: "冰冷重遇", originalTitle: "冰冷重遇", aliases: [], seasons: [
+    { ...work().seasons[0]!, title: "冰冷重遇", number: 1 },
+  ] };
+  it("第 1 頁只找到第 8 季時，補查第 2～7 季且保留原季", async () => {
+    const visited: string[] = [];
+    const results = await discoverSeasonCandidates(original, async (query, page) => {
+      visited.push(`${query}:${page}`);
+      if (query === "冰冷重遇") return {
+        items: [online("冰冷重遇8", "1000000000000000008", 80)],
+        hasMore: false,
+      };
+      const match = query.match(/^冰冷重遇([2-7])$/);
+      return {
+        items: match ? [online(`冰冷重遇${match[1]}`, `100000000000000000${match[1]}`, 30)] : [],
+        hasMore: false,
+      };
+    });
+    expect(results.map((item) => item.seasonNumber)).toEqual([2, 3, 4, 5, 6, 7, 8]);
+    expect(visited).toContain("冰冷重遇7:1");
+    expect(visited.length).toBeLessThanOrEqual(12);
+    expect(original.seasons).toHaveLength(1);
+    expect(original.seasons[0]?.number).toBe(1);
+  });
+  it("有限分頁可以在第二頁找到新季", async () => {
+    const visited: number[] = [];
+    const results = await discoverSeasonCandidates(original, async (_query, page) => {
+      visited.push(page);
+      return { items: page === 2 ? [online("冰冷重遇2")] : [], hasMore: page === 1 };
+    });
+    expect(results.some((item) => item.seasonNumber === 2)).toBe(true);
+    expect(visited.slice(0, 2)).toEqual([1, 2]);
+  });
+  it("重複來源 ID 去重；同季不同 ID 只標為衝突候選", async () => {
+    const results = await discoverSeasonCandidates(original, async () => ({
+      items: [
+        online("冰冷重遇2", "1000000000000000002"),
+        online("冰冷重遇2", "1000000000000000002"),
+        online("冰冷重遇第二季", "1000000000000000003"),
+      ],
+      hasMore: false,
+    }));
+    expect(results).toHaveLength(2);
+    const store = createDramaStore(new MemoryRepository([original]));
+    expect(store.addDiscoveredSeason("work", { number: 2, totalEpisodes: 30, seriesId: "1000000000000000002" }).ok).toBe(true);
+    const rejected = store.addDiscoveredSeason("work", { number: 2, totalEpisodes: 30, seriesId: "1000000000000000003" });
+    expect(rejected.ok).toBe(false);
+    expect(store.get("work")!.seasons).toHaveLength(2);
+  });
+  it("最多 12 次查詢，缺口優先且不會無限翻頁", async () => {
+    let calls = 0;
+    await discoverSeasonCandidates(original, async (_query, page) => {
+      calls++;
+      return {
+        items: page === 1 && calls === 1 ? [online("冰冷重遇20")] : [],
+        hasMore: true,
+      };
+    });
+    expect(calls).toBeLessThanOrEqual(12);
   });
 });
