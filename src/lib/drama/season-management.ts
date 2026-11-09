@@ -14,6 +14,8 @@ export interface SeasonCandidate {
   confidence: SeasonConfidence;
   missingSeasons: number[];
   sameSeason: boolean;
+  /** Added after the user confirms this candidate; retained on Home until they start the season. */
+  handled?: boolean | undefined;
 }
 
 const existingIds = (work: Work) =>

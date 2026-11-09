@@ -54,7 +54,7 @@ export const SERIES_STATUS_LABEL = {
   ongoing: "連載中",
   completed: "已完結",
   paused: "暫停更新",
-  pending: "待更新",
+  pending: "連載中",
 } as const;
 
 export type SortKey = "updateDate" | "updated" | "created" | "watched" | "title" | "rating";

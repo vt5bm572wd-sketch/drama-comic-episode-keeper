@@ -395,8 +395,9 @@ export function createDramaStore(repo: DramaRepository) {
           watchedEpisodes: 0,
           status: "unwatched",
           statusMode: "manual",
-          note: "",
+          // Kept only for legacy backup compatibility; per-season ratings are no longer editable.
           rating: 0,
+          note: "",
           watchMemory: {},
           source: {
             platform: "hongguo",

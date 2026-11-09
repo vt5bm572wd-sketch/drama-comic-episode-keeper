@@ -52,7 +52,9 @@ interface SeasonDraft {
 function toDraft(work?: Work) {
   return {
     updateDate: work?.updateDate ?? "",
-    seriesStatus: (work?.seriesStatus ?? "pending") as SeriesStatus,
+    seriesStatus: (work?.seriesStatus === "pending"
+      ? "ongoing"
+      : (work?.seriesStatus ?? "ongoing")) as SeriesStatus,
     title: work?.title ?? "",
     originalTitle: work?.originalTitle,
     originalSynopsis: work?.originalSynopsis,
@@ -449,11 +451,13 @@ export function WorkForm({
             value={d.seriesStatus}
             onChange={(e) => set("seriesStatus", e.target.value as SeriesStatus)}
           >
-            {Object.entries(SERIES_STATUS_LABEL).map(([key, label]) => (
+            {Object.entries(SERIES_STATUS_LABEL)
+              .filter(([key]) => key !== "pending")
+              .map(([key, label]) => (
               <option key={key} value={key}>
                 {label}
               </option>
-            ))}
+              ))}
           </NativeSelect>
         </Field>
       )}

@@ -105,9 +105,21 @@ export function SeasonManagement({ works }: { works: Work[] }) {
     }
     await Promise.all([worker(), worker()]);
     // Failed work must retain its earlier alert. A network failure never means "no new season".
-    const retained = loadSeasonAlerts().filter((candidate) => failedWorkIds.has(candidate.workId));
+    const retained = loadSeasonAlerts().filter(
+      (candidate) => failedWorkIds.has(candidate.workId) || candidate.handled,
+    );
+    const handledIds = new Set(
+      retained.filter((candidate) => candidate.handled).map((candidate) => candidate.id),
+    );
     const deduped = Array.from(
-      new Map([...retained, ...next].map((candidate) => [candidate.id, candidate])).values(),
+      new Map(
+        [
+          ...retained,
+          ...next.map((candidate) =>
+            handledIds.has(candidate.id) ? { ...candidate, handled: true } : candidate,
+          ),
+        ].map((candidate) => [candidate.id, candidate]),
+      ).values(),
     );
     saveSeasonAlerts(deduped);
     setAlerts(deduped);
@@ -122,11 +134,37 @@ export function SeasonManagement({ works }: { works: Work[] }) {
     void check(false); /* daily first-open check */
   }, [works.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectable = alerts.filter((candidate) => !candidate.sameSeason && candidate.seasonNumber != null);
+  // A confirmed new season remains on Home only until it is actually started.
+  useEffect(() => {
+    const next = alerts.filter((candidate) => {
+      if (!candidate.handled || candidate.seasonNumber == null) return true;
+      const season = works
+        .find((work) => work.id === candidate.workId)
+        ?.seasons.find((item) => item.number === candidate.seasonNumber);
+      return season?.status !== "watching" && season?.status !== "completed";
+    });
+    if (next.length !== alerts.length) {
+      saveSeasonAlerts(next);
+      setAlerts(next);
+    }
+  }, [alerts, works, setAlerts]);
+
+  const reviewAlerts = alerts.filter((candidate) => !candidate.handled);
+  const selectable = reviewAlerts.filter(
+    (candidate) => !candidate.sameSeason && candidate.seasonNumber != null,
+  );
   const allSelected = selectable.length > 0 && selectable.every((candidate) => selectedIds.includes(candidate.id));
   const workById = useMemo(() => new Map(works.map((work) => [work.id, work])), [works]);
   function remove(id: string) {
     const next = alerts.filter((candidate) => candidate.id !== id);
+    saveSeasonAlerts(next);
+    setAlerts(next);
+  }
+  function markHandled(ids: string[]) {
+    const selected = new Set(ids);
+    const next = alerts.map((candidate) =>
+      selected.has(candidate.id) ? { ...candidate, handled: true } : candidate,
+    );
     saveSeasonAlerts(next);
     setAlerts(next);
   }
@@ -137,7 +175,7 @@ export function SeasonManagement({ works }: { works: Work[] }) {
       seriesId: candidate.seriesId,
     });
     if (result.ok) {
-      remove(candidate.id);
+      markHandled([candidate.id]);
       toast.success(`已加入第 ${number} 季；仍停留在原本季數。`);
     } else
       toast.error(
@@ -153,6 +191,7 @@ export function SeasonManagement({ works }: { works: Work[] }) {
     );
     if (!chosen.length) return;
     const failed: string[] = [];
+    const handledIds: string[] = [];
     for (const candidate of chosen) {
       const result = dramaStore.addDiscoveredSeason(candidate.workId, {
         number: candidate.seasonNumber!,
@@ -160,8 +199,9 @@ export function SeasonManagement({ works }: { works: Work[] }) {
         seriesId: candidate.seriesId,
       });
       if (!result.ok) failed.push(candidate.title);
-      else remove(candidate.id);
+      else handledIds.push(candidate.id);
     }
+    if (handledIds.length) markHandled(handledIds);
     setSelectedIds([]);
     if (failed.length)
       toast.error(`已加入 ${chosen.length - failed.length} 個；${failed.join("、")} 未加入。`);
@@ -170,10 +210,10 @@ export function SeasonManagement({ works }: { works: Work[] }) {
 
   return (
     <>
-      {alerts.length ? (
+      {reviewAlerts.length ? (
         <div className="mx-5 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
           <button type="button" className="min-w-0 text-left" onClick={() => setOpen(true)}>
-            <span className="font-medium">{`發現 ${alerts.length} 部疑似新季 ♡`}</span>
+            <span className="font-medium">{`發現 ${reviewAlerts.length} 部疑似新季 ♡`}</span>
             <span className="ml-2 text-xs text-muted-foreground">僅確認後才加入</span>
           </button>
           <Button
@@ -214,7 +254,7 @@ export function SeasonManagement({ works }: { works: Work[] }) {
                 {error}
               </p>
             )}
-            {alerts.length === 0 ? (
+            {reviewAlerts.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 目前沒有待確認的新季候選。
               </p>
@@ -233,7 +273,7 @@ export function SeasonManagement({ works }: { works: Work[] }) {
                   </Button>
                 </div>
                 <div className="space-y-3">
-                  {alerts.map((candidate) => (
+                  {reviewAlerts.map((candidate) => (
                     <CandidateRow
                       key={candidate.id}
                       candidate={candidate}

@@ -94,10 +94,16 @@ function HomeContent({ works }: { works: NonNullable<ReturnType<typeof useWorks>
   const pendingNewSeasons = Array.from(
     new Map(
       alerts
-        .filter((candidate) => !candidate.sameSeason && candidate.seasonNumber != null)
+        .filter((candidate) => candidate.seasonNumber != null)
         .map((candidate) => {
           const work = works.find((item) => item.id === candidate.workId);
-          return work ? [work.id, { work, candidate }] : null;
+          if (!work) return null;
+          const season = work.seasons.find((item) => item.number === candidate.seasonNumber);
+          const stillNew =
+            !candidate.handled ||
+            !season ||
+            (season.status !== "watching" && season.status !== "completed");
+          return stillNew ? [work.id, { work, candidate }] : null;
         })
         .filter((item): item is [string, { work: Work; candidate: SeasonCandidate }] => item !== null),
     ).values(),
@@ -247,7 +253,9 @@ function NewSeasonsRow({
           <div key={candidate.id} className="w-[132px] shrink-0">
             <PosterCard work={work} />
             <p className="mt-1 text-[11px] text-primary">
-              發現第 {candidate.seasonNumber} 季 · 尚未加入
+              {candidate.handled
+                ? `第 ${candidate.seasonNumber} 季 · 尚未開始追劇`
+                : `發現第 ${candidate.seasonNumber} 季 · 尚未加入`}
             </p>
           </div>
         );

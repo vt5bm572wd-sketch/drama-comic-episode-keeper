@@ -8,7 +8,6 @@ import { WATCH_STATUS_LABEL, WATCH_STATUS_ORDER } from "@/lib/drama/labels";
 import { dramaStore } from "@/lib/drama/store";
 import type { Season, WatchStatus, Work } from "@/lib/drama/types";
 import { Field, NativeSelect } from "./fields";
-import { RatingStars } from "./RatingStars";
 
 export function SeasonDialog({
   work,
@@ -28,8 +27,6 @@ export function SeasonDialog({
   const [watched, setWatched] = useState("0");
   const [status, setStatus] = useState<WatchStatus>("unwatched");
   const [title, setTitle] = useState("");
-  const [updateDate, setUpdateDate] = useState("");
-  const [rating, setRating] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -39,8 +36,6 @@ export function SeasonDialog({
     setWatched(String(season?.watchedEpisodes ?? 0));
     setStatus(season?.status ?? "pending");
     setTitle(season?.title ?? season?.originTitle ?? "");
-    setUpdateDate(season?.updateDate ?? "");
-    setRating(season?.rating ?? 0);
     setError("");
   }, [open, season, work]);
 
@@ -68,8 +63,6 @@ export function SeasonDialog({
         watchedEpisodes: w,
         status,
         statusMode: "manual",
-        updateDate: updateDate || null,
-        rating,
         updatedAt: now,
       },
       now,
@@ -131,12 +124,6 @@ export function SeasonDialog({
                 </option>
               ))}
             </NativeSelect>
-          </Field>
-          <Field label="更新日期">
-            <Input type="date" value={updateDate} onChange={(e) => setUpdateDate(e.target.value)} />
-          </Field>
-          <Field label="本季評分">
-            <RatingStars value={rating} onChange={setRating} />
           </Field>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button className="w-full" onClick={save}>

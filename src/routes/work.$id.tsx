@@ -100,6 +100,7 @@ function WorkDetail({ work }: { work: Work }) {
       params: { id: work.id },
       search: { season: seasonId },
       replace: true,
+      resetScroll: false,
     });
 
   return (
@@ -252,50 +253,24 @@ function WorkDetail({ work }: { work: Work }) {
                     </p>
                   )}
                 </div>
-                <StatusBadge status={selected.status} />
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={selected.status} />
+                  {selected.id !== work.currentSeasonId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        dramaStore.setCurrentSeason(work.id, selected.id);
+                        toast.success(`目前觀看：第 ${selected.number} 季`);
+                      }}
+                    >
+                      設為目前
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <EpisodeStepper work={work} season={selected} />
-
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-                <label className="space-y-1.5">
-                  <span className="block text-[13px] text-muted-foreground">本季狀態</span>
-                  <NativeSelect
-                    value={selected.status}
-                    aria-label="本季觀看狀態"
-                    onChange={(e) =>
-                      dramaStore.upsertSeason(work.id, {
-                        ...selected,
-                        status: e.target.value as WatchStatus,
-                        statusMode: "manual",
-                        updatedAt: new Date().toISOString(),
-                      })
-                    }
-                  >
-                    {WATCH_STATUS_ORDER.map((s) => (
-                      <option key={s} value={s}>
-                        {WATCH_STATUS_LABEL[s]}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </label>
-                {selected.id !== work.currentSeasonId ? (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      dramaStore.setCurrentSeason(work.id, selected.id);
-                      toast.success(`目前觀看：第 ${selected.number} 季`);
-                    }}
-                  >
-                    設為目前
-                  </Button>
-                ) : (
-                  <span className="flex h-11 items-center px-2 text-xs text-primary">
-                    目前觀看中
-                  </span>
-                )}
-              </div>
 
               <details className="group border-t border-border pt-2">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -304,15 +279,6 @@ function WorkDetail({ work }: { work: Work }) {
                   <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
                 </summary>
                 <div className="space-y-4 pt-2">
-                  <div className="grid grid-cols-2 gap-2 text-xs text-subtle-foreground">
-                    <span>
-                      {selected.updateDate ? `更新：${selected.updateDate}` : "未提供更新日期"}
-                    </span>
-                    <span className="text-right">
-                      {selected.rating ? `評分：${selected.rating} 星` : "本季未評分"}
-                    </span>
-                  </div>
-
                   {selected.source && (
                     <a
                       href={hongguoDetailUrl(selected.source.seriesId)}

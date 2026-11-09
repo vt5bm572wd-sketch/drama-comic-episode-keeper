@@ -57,9 +57,16 @@ describe("新增與編輯的共用表單", () => {
       totalEpisodes: 40,
     });
   });
-  it("提供四種劇集狀態與五種正式追劇狀態，且不再出現想看、待觀看或暫停看", () => {
+  it("將待更新合併為連載中，且保留五種正式追劇狀態", () => {
     render(<WorkForm submitLabel="新增" onSubmit={() => {}} />);
-    expect(screen.getByLabelText("劇集狀態").querySelectorAll("option")).toHaveLength(4);
+    const seriesStatusOptions = [
+      ...screen.getByLabelText("劇集狀態").querySelectorAll("option"),
+    ];
+    expect(seriesStatusOptions.map((option) => option.textContent)).toEqual([
+      "連載中",
+      "已完結",
+      "暫停更新",
+    ]);
     const statusSelect = screen.getByLabelText("我的追劇狀態") as HTMLSelectElement;
     const options = [...statusSelect.querySelectorAll("option")];
     expect(statusSelect.value).toBe("unwatched");

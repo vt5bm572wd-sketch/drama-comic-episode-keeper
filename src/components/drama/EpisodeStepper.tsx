@@ -109,12 +109,17 @@ export function EpisodeStepper({
             />
           </label>
           <label className="text-[11px] text-muted-foreground">
-            修改狀態
+            本季狀態
             <NativeSelect
               className="mt-1"
-              value={work.watchStatus === "dropped" ? "paused" : work.watchStatus}
+              value={season.status}
               onChange={(event) =>
-                dramaStore.update(work.id, { watchStatus: event.target.value as WatchStatus })
+                dramaStore.upsertSeason(work.id, {
+                  ...season,
+                  status: event.target.value as WatchStatus,
+                  statusMode: "manual",
+                  updatedAt: new Date().toISOString(),
+                })
               }
             >
               {WATCH_STATUS_ORDER.map((status) => (
