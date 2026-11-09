@@ -86,16 +86,18 @@ export function WorkRow({ work, withStepper }: { work: Work; withStepper?: boole
         params={{ id: work.id }}
         className="flex min-w-0 items-start gap-3.5 active:opacity-80"
       >
-        <WorkCover
-          src={work.cover}
-          title={work.title}
-          className="w-[76px] shrink-0 self-start rounded-lg [&_img]:object-cover [&_img]:object-top"
-        />
+        <div className="relative w-[76px] shrink-0 self-start">
+          <WorkCover
+            src={work.cover}
+            title={work.title}
+            className="w-full rounded-lg [&_img]:object-cover [&_img]:object-top"
+          />
+          <div className="absolute left-1 top-1 z-10"><NewSeasonMark workId={work.id} /></div>
+        </div>
 
         <div className="flex min-w-0 flex-1 flex-col py-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <h3 className="truncate font-serif text-base font-semibold">{work.title}</h3>
-            <NewSeasonMark workId={work.id} />
             {work.isDemo && <DemoBadge />}
           </div>
 
