@@ -37,7 +37,7 @@ function HomePage() {
 
   return (
     <main className="min-h-[100dvh] bg-background pb-nav">
-      <header className="pt-safe px-5 pb-3">
+      <header className="pt-safe px-5 pb-3">\n        <div className="rounded-[28px] border border-border/60 bg-gradient-to-br from-[#D5ECF2]/80 via-[#FFFAE8] to-[#FADAE2]/75 px-4 pb-4 pt-1 shadow-card">
         <p className="brand-title pt-4 text-2xl text-foreground">NINA DRAMA</p>
         <p className="mt-1 text-xs tracking-[0.2em] text-subtle-foreground">私人短劇・漫劇收藏館</p>
         <Link
@@ -46,8 +46,7 @@ function HomePage() {
         >
           <Search className="size-[18px] shrink-0" />
           <span className="truncate">搜尋劇名、別名、分類、標籤…</span>
-        </Link>
-      </header>
+        </Link>\n        <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">\n          <span className="font-medium tracking-wide">每一季，都值得好好收藏 ♡</span>\n          <span className="shrink-0 rounded-full bg-card/80 px-3 py-1 text-foreground">我的追劇空間</span>\n        </div>\n        </div>\n      </header>
 
       {works === null ? <LoadingBlock /> : <HomeContent works={works} />}
 
