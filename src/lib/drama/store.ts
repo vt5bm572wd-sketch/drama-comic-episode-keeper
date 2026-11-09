@@ -45,7 +45,14 @@ export function createDramaStore(repo: DramaRepository) {
         works = buildDemoWorks();
         persist();
       } else {
-        works = loaded.map(migrateWork);
+        try {
+          works = loaded.map(migrateWork);
+        } catch {
+          // Keep malformed legacy data untouched and let the UI recover safely.
+          // The user can restore a verified backup instead of losing any records.
+          dataError = "收藏資料格式需要修復，已停止讀取與寫入。";
+          works = [];
+        }
       }
     }
     return works;
