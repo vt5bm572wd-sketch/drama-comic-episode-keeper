@@ -26,11 +26,63 @@ const KEY = "nina-drama:new-season-alerts:v1";
 const DAILY_KEY = "nina-drama:new-season-last-check:v1";
 const CHANGE_EVENT = "nina-drama:new-season-alerts";
 
+function normalizeSeasonAlert(value: unknown): SeasonCandidate | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<SeasonCandidate>;
+  if (
+    typeof candidate.id !== "string" ||
+    typeof candidate.workId !== "string" ||
+    typeof candidate.title !== "string" ||
+    typeof candidate.seriesId !== "string"
+  ) {
+    return null;
+  }
+  const confidence =
+    candidate.confidence === "high" ||
+    candidate.confidence === "medium" ||
+    candidate.confidence === "low"
+      ? candidate.confidence
+      : "low";
+  const seasonNumber =
+    typeof candidate.seasonNumber === "number" &&
+    Number.isInteger(candidate.seasonNumber) &&
+    candidate.seasonNumber > 0
+      ? candidate.seasonNumber
+      : null;
+  const totalEpisodes =
+    typeof candidate.totalEpisodes === "number" &&
+    Number.isFinite(candidate.totalEpisodes) &&
+    candidate.totalEpisodes >= 0
+      ? candidate.totalEpisodes
+      : null;
+  const missingSeasons = Array.isArray(candidate.missingSeasons)
+    ? candidate.missingSeasons.filter(
+        (season): season is number =>
+          typeof season === "number" && Number.isInteger(season) && season > 0,
+      )
+    : [];
+  return {
+    id: candidate.id,
+    workId: candidate.workId,
+    title: candidate.title,
+    coverUrl: typeof candidate.coverUrl === "string" ? candidate.coverUrl : null,
+    seriesId: candidate.seriesId,
+    totalEpisodes,
+    seasonNumber,
+    confidence,
+    missingSeasons,
+    sameSeason: candidate.sameSeason === true,
+    ...(candidate.handled === true ? { handled: true } : {}),
+  };
+}
+
 export function loadSeasonAlerts(): SeasonCandidate[] {
   if (typeof window === "undefined") return [];
   try {
     const value = JSON.parse(window.localStorage.getItem(KEY) ?? "[]");
-    return Array.isArray(value) ? value : [];
+    return Array.isArray(value)
+      ? value.map(normalizeSeasonAlert).filter((candidate): candidate is SeasonCandidate => !!candidate)
+      : [];
   } catch {
     return [];
   }
