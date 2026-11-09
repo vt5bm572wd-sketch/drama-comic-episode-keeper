@@ -114,7 +114,6 @@ describe("確認加入的新季資料保護", () => {
     const store = createDramaStore(new MemoryRepository([original]));
     const result = store.addDiscoveredSeason("work", {
       number: 2,
-      title: "顏心未改第二季",
       totalEpisodes: null,
       seriesId: "1000000000000000002",
     });
@@ -142,7 +141,6 @@ describe("確認加入的新季資料保護", () => {
     expect(
       store.addDiscoveredSeason("work", {
         number: 1,
-        title: "顏心未改",
         totalEpisodes: 50,
         seriesId: "9999999999999999999",
       }).ok,
@@ -150,7 +148,6 @@ describe("確認加入的新季資料保護", () => {
     expect(
       store.addDiscoveredSeason("work", {
         number: 2,
-        title: "顏心未改2",
         totalEpisodes: 50,
         seriesId: "1000000000000000001",
       }).ok,

@@ -368,7 +368,7 @@ export function createDramaStore(repo: DramaRepository) {
     /** 僅供「新季提醒」確認後使用：絕不合併舊卡片，也不改 currentSeasonId 或舊季。 */
     addDiscoveredSeason(
       id: string,
-      input: { number: number; title: string; totalEpisodes: number | null; seriesId: string },
+      input: { number: number; totalEpisodes: number | null; seriesId: string },
     ) {
       const work = ensureLoaded().find((item) => item.id === id);
       if (!work || !Number.isInteger(input.number) || input.number < 1)
@@ -389,8 +389,6 @@ export function createDramaStore(repo: DramaRepository) {
         {
           id: uid("s"),
           number: input.number,
-          title: input.title,
-          originTitle: input.title,
           totalEpisodes: input.totalEpisodes ?? 0,
           currentEpisodes: input.totalEpisodes ?? 0,
           episodeCountKnown: input.totalEpisodes != null,

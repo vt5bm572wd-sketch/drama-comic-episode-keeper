@@ -123,7 +123,6 @@ export function SeasonManagement({ works }: { works: Work[] }) {
   function add(candidate: SeasonCandidate, number: number) {
     const result = dramaStore.addDiscoveredSeason(candidate.workId, {
       number,
-      title: candidate.title,
       totalEpisodes: candidate.totalEpisodes,
       seriesId: candidate.seriesId,
     });
@@ -148,7 +147,6 @@ export function SeasonManagement({ works }: { works: Work[] }) {
     for (const candidate of chosen) {
       const result = dramaStore.addDiscoveredSeason(candidate.workId, {
         number: candidate.seasonNumber!,
-        title: candidate.title,
         totalEpisodes: candidate.totalEpisodes,
         seriesId: candidate.seriesId,
       });
@@ -163,23 +161,35 @@ export function SeasonManagement({ works }: { works: Work[] }) {
 
   return (
     <>
-      <div className="mx-5 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-        <button type="button" className="min-w-0 text-left" onClick={() => setOpen(true)}>
-          <span className="font-medium">
-            {alerts.length ? `發現 ${alerts.length} 部疑似新季 ♡` : "新季管理"}
-          </span>
-          <span className="ml-2 text-xs text-muted-foreground">僅確認後才加入</span>
-        </button>
-        <Button
-          size="sm"
-          variant="secondary"
-          aria-label="檢查新季"
-          disabled={checking}
-          onClick={() => void check(true)}
-        >
-          {checking ? <Loader2 className="animate-spin" /> : <RefreshCw />} 檢查
-        </Button>
-      </div>
+      {alerts.length ? (
+        <div className="mx-5 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+          <button type="button" className="min-w-0 text-left" onClick={() => setOpen(true)}>
+            <span className="font-medium">{`發現 ${alerts.length} 部疑似新季 ♡`}</span>
+            <span className="ml-2 text-xs text-muted-foreground">僅確認後才加入</span>
+          </button>
+          <Button
+            size="sm"
+            variant="secondary"
+            aria-label="檢查新季"
+            disabled={checking}
+            onClick={() => void check(true)}
+          >
+            {checking ? <Loader2 className="animate-spin" /> : <RefreshCw />} 檢查
+          </Button>
+        </div>
+      ) : (
+        <div className="mx-5 flex justify-end">
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="檢查新季"
+            disabled={checking}
+            onClick={() => void check(true)}
+          >
+            {checking ? <Loader2 className="animate-spin" /> : <RefreshCw />} 檢查新季
+          </Button>
+        </div>
+      )}
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerContent className="max-h-[88dvh] pb-safe">
           <DrawerHeader className="text-left">
