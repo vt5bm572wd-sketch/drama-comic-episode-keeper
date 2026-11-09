@@ -79,7 +79,9 @@ export function SeasonManagement({ works }: { works: Work[] }) {
     const failedWorkIds = new Set<string>();
     // Two workers prevent a large library from creating a request burst. Each work uses its
     // canonical title first, then aliases only when the first query gives no usable candidate.
-    const queue = sortWorksForSeasonCheck(works).filter((work) => !work.isDemo);
+    const queue = sortWorksForSeasonCheck(works).filter(
+      (work) => !work.isDemo && work.seriesStatus !== "completed" && work.seriesStatus !== "paused",
+    );
     let cursor = 0;
     async function worker() {
       while (cursor < queue.length) {
@@ -105,8 +107,11 @@ export function SeasonManagement({ works }: { works: Work[] }) {
     }
     await Promise.all([worker(), worker()]);
     // Failed work must retain its earlier alert. A network failure never means "no new season".
+    const skippedIds = new Set(
+      works.filter((work) => work.seriesStatus === "completed" || work.seriesStatus === "paused").map((work) => work.id),
+    );
     const retained = loadSeasonAlerts().filter(
-      (candidate) => failedWorkIds.has(candidate.workId) || candidate.handled,
+      (candidate) => failedWorkIds.has(candidate.workId) || skippedIds.has(candidate.workId) || candidate.handled,
     );
     const handledIds = new Set(
       retained.filter((candidate) => candidate.handled).map((candidate) => candidate.id),
