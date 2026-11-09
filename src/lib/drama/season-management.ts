@@ -133,3 +133,63 @@ export async function retryWithBackoff<T>(
   }
   throw failure;
 }
+
+
+/**
+ * Search a bounded set of pages and backfill gaps rather than stopping at the
+ * first late-season hit. This function never writes collection data.
+ * Per work: at most 12 page lookups, with no unbounded pagination.
+ */
+export async function discoverSeasonCandidates(
+  work: Work,
+  lookup: (query: string, page: number) => Promise<{ items: OnlineWork[]; hasMore: boolean }>,
+): Promise<SeasonCandidate[]> {
+  const maxLookups = 12;
+  let lookups = 0;
+  const results = new Map<string, OnlineWork>();
+  const addResults = (items: OnlineWork[]) => {
+    for (const item of items) results.set(item.seriesId, item);
+  };
+  const queryPage = async (term: string, page: number) => {
+    if (lookups >= maxLookups) return null;
+    lookups++;
+    const response = await lookup(term, page);
+    addResults(response.items);
+    return response;
+  };
+  // Search the canonical title and, if available, the next page. Only search
+  // aliases when neither page yielded a usable candidate.
+  for (const term of seasonSearchTerms(work)) {
+    const first = await queryPage(term, 1);
+    if (first?.hasMore) await queryPage(term, 2);
+    if (findSeasonCandidates(work, [...results.values()]).length) break;
+  }
+
+  const getCandidates = () => findSeasonCandidates(work, [...results.values()]);
+  const knownNumbers = new Set(work.seasons.map((season) => season.number));
+  const candidates = getCandidates();
+  const highest = Math.max(
+    1,
+    ...work.seasons.map((season) => season.number),
+    ...candidates.map((candidate) => candidate.seasonNumber ?? 1),
+  );
+  // A late season may already have been added, so derive gaps from the saved
+  // series too, not just from the new search results.
+  const gaps = Array.from({ length: Math.max(0, Math.min(highest, 20) - 2) }, (_, i) => i + 2)
+    .filter((number) => !knownNumbers.has(number))
+    .slice(0, 6);
+  const baseTitle = parseSeriesIdentity(work.title).baseTitle;
+  for (const number of gaps) {
+    if (getCandidates().some((candidate) => candidate.seasonNumber === number && !candidate.sameSeason))
+      continue;
+    await queryPage(`${baseTitle}${number}`, 1);
+    if (getCandidates().some((candidate) => candidate.seasonNumber === number && !candidate.sameSeason))
+      continue;
+    if (lookups < maxLookups) await queryPage(`${baseTitle}第${number}季`, 1);
+  }
+  return getCandidates().sort((a, b) =>
+    Number(a.sameSeason) - Number(b.sameSeason) ||
+    (a.seasonNumber ?? Number.MAX_SAFE_INTEGER) - (b.seasonNumber ?? Number.MAX_SAFE_INTEGER) ||
+    a.seriesId.localeCompare(b.seriesId),
+  );
+}
