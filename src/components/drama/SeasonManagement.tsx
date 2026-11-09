@@ -114,6 +114,8 @@ export function SeasonManagement({ works }: { works: Work[] }) {
     void check(false); /* daily first-open check */
   }, [works.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const selectable = alerts.filter((candidate) => !candidate.sameSeason && candidate.seasonNumber != null);
+  const allSelected = selectable.length > 0 && selectable.every((candidate) => selectedIds.includes(candidate.id));
   const workById = useMemo(() => new Map(works.map((work) => [work.id, work])), [works]);
   function remove(id: string) {
     const next = alerts.filter((candidate) => candidate.id !== id);
@@ -178,7 +180,7 @@ export function SeasonManagement({ works }: { works: Work[] }) {
           </Button>
         </div>
       ) : (
-        <div className="mx-5 flex justify-end">
+        <div className="mx-5 flex justify-end rounded-2xl bg-secondary/60 px-3 py-2">
           <Button
             size="sm"
             variant="ghost"
@@ -211,13 +213,15 @@ export function SeasonManagement({ works }: { works: Work[] }) {
               </p>
             ) : (
               <>
-                <div className="mb-3 flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={!selectedIds.length}
-                    onClick={batchAdd}
-                  >
+                <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-2 rounded-xl border border-border bg-card/95 p-3 shadow-card">
+                  <label className="flex min-h-10 items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" aria-label="全選可加入的新季" className="size-5 accent-primary"
+                      checked={allSelected}
+                      onChange={(event) => setSelectedIds(event.target.checked ? selectable.map((candidate) => candidate.id) : [])}
+                    />
+                    全選 <span className="text-xs text-muted-foreground">({selectedIds.length}/{selectable.length})</span>
+                  </label>
+                  <Button size="sm" disabled={!selectedIds.length} onClick={batchAdd}>
                     加入已選 {selectedIds.length} 部
                   </Button>
                 </div>
@@ -269,7 +273,7 @@ function CandidateRow({
   );
   const valid = /^\d+$/.test(number) && Number(number) > 0;
   return (
-    <article className="surface space-y-2.5 p-3.5">
+    <article className="surface space-y-3 p-3.5">
       {!candidate.sameSeason && candidate.seasonNumber != null && (
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <input
@@ -280,13 +284,26 @@ function CandidateRow({
           批次加入此季
         </label>
       )}
-      <p className="text-xs text-subtle-foreground">《{work?.title ?? "原系列"}》</p>
-      <h3 className="font-serif font-semibold">{candidate.title}</h3>
-      <p className="break-all text-xs text-muted-foreground">
-        第 {candidate.seasonNumber ?? "季數不明"} ·{" "}
-        {candidate.totalEpisodes == null ? "集數未提供" : `${candidate.totalEpisodes} 集`} · ID{" "}
-        {candidate.seriesId}
-      </p>
+      <div className="flex items-start gap-3">
+        <div className="h-[116px] w-[78px] shrink-0 overflow-hidden rounded-xl bg-secondary">
+          {candidate.coverUrl ? (
+            <img src={candidate.coverUrl} alt={`${candidate.title} 封面`} loading="lazy"
+              className="h-full w-full object-cover" referrerPolicy="no-referrer"
+              onError={(event) => { event.currentTarget.style.display = "none"; }}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center px-2 text-center text-xs text-muted-foreground">暫無封面</div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="truncate text-xs text-subtle-foreground">《{work?.title ?? "原系列"}》</p>
+          <h3 className="font-serif font-semibold leading-snug">{candidate.title}</h3>
+          <p className="text-xs text-muted-foreground">
+            第 {candidate.seasonNumber ?? "季數不明"} 季 · {candidate.totalEpisodes == null ? "集數未知" : `${candidate.totalEpisodes} 集`}
+          </p>
+          <p className="break-all text-[10px] leading-relaxed text-muted-foreground">ID {candidate.seriesId}</p>
+        </div>
+      </div>
       {candidate.missingSeasons.length > 0 && (
         <p className="text-xs text-gold">
           目前缺少第 {candidate.missingSeasons.join("、")} 季，仍可直接加入。
