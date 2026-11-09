@@ -179,13 +179,18 @@ export async function discoverSeasonCandidates(
     .filter((number) => !knownNumbers.has(number))
     .slice(0, 6);
   const baseTitle = parseSeriesIdentity(work.title).baseTitle;
+  // Prioritize one lookup for every missing season before using spare budget
+  // on alternate naming. This prevents season 7 being starved by season 2.
   for (const number of gaps) {
     if (getCandidates().some((candidate) => candidate.seasonNumber === number && !candidate.sameSeason))
       continue;
     await queryPage(`${baseTitle}${number}`, 1);
+  }
+  for (const number of gaps) {
     if (getCandidates().some((candidate) => candidate.seasonNumber === number && !candidate.sameSeason))
       continue;
-    if (lookups < maxLookups) await queryPage(`${baseTitle}第${number}季`, 1);
+    if (lookups >= maxLookups) break;
+    await queryPage(`${baseTitle}第${number}季`, 1);
   }
   return getCandidates().sort((a, b) =>
     Number(a.sameSeason) - Number(b.sameSeason) ||
