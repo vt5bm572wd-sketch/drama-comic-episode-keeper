@@ -149,7 +149,6 @@ export function ManualWatchMemory({ workId, season }: { workId: string; season: 
 
       {tab === "plot" && (
         <div>
-          
           {memory.plot && editingKey !== "plot" && (
             <ol className="mb-4 space-y-4">
               {plotLines(memory.plot).map((line, index) => (
